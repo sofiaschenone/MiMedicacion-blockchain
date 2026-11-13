@@ -1,0 +1,240 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "FechaVacia",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "HashInvalido",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "IdentificadorVacio",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "pacienteId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fecha",
+        "type": "string"
+      }
+    ],
+    "name": "RegistroNoEncontrado",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "pacienteId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fecha",
+        "type": "string"
+      }
+    ],
+    "name": "RegistroYaExistente",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "string",
+        "name": "pacienteId",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "string",
+        "name": "fecha",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "hashRegistro",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "HashRegistrado",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "pacienteId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fecha",
+        "type": "string"
+      }
+    ],
+    "name": "consultarHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "hashRegistro",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "pacienteId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fecha",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "hashRegistro",
+        "type": "bytes32"
+      }
+    ],
+    "name": "registrarHash",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "pacienteId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "fecha",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "hashAValidar",
+        "type": "bytes32"
+      }
+    ],
+    "name": "verificarHash",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "valido",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

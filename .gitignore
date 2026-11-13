@@ -1,0 +1,73 @@
+# ==========================================
+# 🛑 SEGURIDAD CRÍTICA - NUNCA SUBIR A GITHUB
+# ==========================================
+# Claves privadas, API keys y credenciales
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Permitir explícitamente el archivo de ejemplo para los compañeros
+!.env.example
+
+# ==========================================
+# 📦 DEPENDENCIAS
+# ==========================================
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# ==========================================
+# 🔨 HARDHAT & ARTIFACTS DE COMPILACIÓN
+# ==========================================
+# Archivos autogenerados al compilar los smart contracts
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Metadatos locales de despliegues
+src/deployment-info.json
+
+# Reportes de gas y cobertura de tests
+coverage/
+coverage.json
+.nyc_output/
+
+# ==========================================
+# 🪵 LOGS Y ARCHIVOS TEMPORALES
+# ==========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# 💻 SISTEMA OPERATIVO Y EDITORES
+# ==========================================
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
