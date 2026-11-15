@@ -9,6 +9,7 @@
 const cron = require("node-cron");
 const { generarHashDiario, guardarHashEnBlockchain } = require("./blockchainService");
 const { fechaDeRegistroHoy } = require("./validacion");
+const { resumirLote } = require("./resumen");
 
 /**
  * Función que simula la consulta a la base de datos relacional/NoSQL del backend
@@ -104,6 +105,10 @@ async function ejecutarAnclajeDiario() {
     console.log(`[Cron] Se encontraron ${registrosPacientes.length} pacientes con actividad en el día.\n`);
 
     // 2. Procesar paciente por paciente
+    // Se acumula un resultado por paciente para que el cierre describa lo que
+    // realmente pasó con el lote, en lugar de anunciar siempre un éxito.
+    const resultadosDelLote = [];
+
     for (const datosPaciente of registrosPacientes) {
       console.log(`------------------------------------------------------------------------`);
       console.log(`👤 Procesando Paciente: ${datosPaciente.paciente} (${datosPaciente.nombrePaciente})`);
@@ -128,14 +133,27 @@ async function ejecutarAnclajeDiario() {
         console.log(`   Tx Hash: ${resultado.transactionHash}`);
         console.log(`   Bloque : ${resultado.blockNumber}`);
         console.log(`   Enlace : ${resultado.explorerUrl}`);
+
+        resultadosDelLote.push({
+          paciente: datosPaciente.paciente,
+          exito: true,
+          motivo: null,
+        });
       } catch (errPaciente) {
         console.error(`❌ Error al notariar paciente ${datosPaciente.paciente}: ${errPaciente.message}`);
         // En producción se registraría en un sistema de alertas (Sentry, Slack, etc.)
+        resultadosDelLote.push({
+          paciente: datosPaciente.paciente,
+          exito: false,
+          motivo: errPaciente.message,
+        });
       }
     }
 
+    const resumen = resumirLote(resultadosDelLote);
+
     console.log("\n========================================================================");
-    console.log("🎉 [CRON JOB FINALIZADO] Todos los lotes del día fueron procesados.");
+    console.log(resumen.encabezado);
     console.log("========================================================================\n");
   } catch (error) {
     console.error("[Cron] Error crítico durante la ejecución del proceso diario:", error);
