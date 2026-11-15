@@ -128,6 +128,15 @@ function obtenerContratoConectado() {
  * @returns {Promise<Object>} Información detallada del recibo de la transacción
  */
 async function guardarHashEnBlockchain(pacienteId, fecha, hash) {
+  // La fecha de registro se valida antes de resolver la configuración y de tocar
+  // la red: una fecha inválida nunca debe llegar al contrato ni gastar gas. El
+  // error que ve el llamador es entonces el de la fecha, no uno de credenciales.
+  try {
+    validarFechaRegistro(fecha);
+  } catch (error) {
+    throw new Error(`No se puede anclar el registro: ${error.message}`);
+  }
+
   try {
     console.log(`[BlockchainService] Iniciando anclaje para Paciente: ${pacienteId} | Fecha: ${fecha}`);
     console.log(`[BlockchainService] Hash a sellar: ${hash}`);
@@ -193,15 +202,26 @@ async function consultarHashEnBlockchain(pacienteId, fecha) {
   };
 }
 
-// Textos de diagnóstico de la auditoría. Se mantienen juntos para que los tres
-// estados sean revisables en un solo lugar. El de NO_ANCLADO evita la acusación
-// de fraude: la ausencia de un anclaje no es una manipulación de los datos.
+// Estados de la auditoría. diagnosticar solo produce los tres primeros;
+// NO_AUDITABLE lo produce el llamador cuando ni siquiera se puede calcular el
+// hash local (por ejemplo, por una fecha de registro no canónica).
+const ESTADO_INTEGRO = "INTEGRO";
+const ESTADO_ALTERADO = "ALTERADO";
+const ESTADO_NO_ANCLADO = "NO_ANCLADO";
+const ESTADO_NO_AUDITABLE = "NO_AUDITABLE";
+
+// Textos de diagnóstico de la auditoría. Se mantienen juntos para que los estados
+// sean revisables en un solo lugar. El de NO_ANCLADO evita la acusación de fraude:
+// la ausencia de un anclaje no es una manipulación de los datos. El de NO_AUDITABLE
+// explica que el problema es la fecha local, no el anclaje.
 const DIAGNOSTICO_INTEGRO =
   "INTEGRIDAD CONFIRMADA: El registro no ha sufrido ninguna modificación desde su notariado en Sepolia.";
 const DIAGNOSTICO_ALTERADO =
   "ALERTA DE SEGURIDAD: Los datos locales discrepan del hash en la blockchain (posible alteración o fraude).";
 const DIAGNOSTICO_NO_ANCLADO =
   "SIN ANCLAJE: El registro no está anclado en la blockchain, no existe un hash de referencia para esa fecha. Su ausencia NO es una alteración ni un fraude.";
+const DIAGNOSTICO_NO_AUDITABLE =
+  "NO AUDITABLE: La fecha local no es una fecha de registro válida, por lo tanto no se puede comparar el registro contra el anclaje.";
 
 /**
  * Traduce el resultado de la verificación a los tres estados posibles de la auditoría.
@@ -217,12 +237,12 @@ const DIAGNOSTICO_NO_ANCLADO =
  */
 function diagnosticar(existe, coincide) {
   if (!existe) {
-    return { estado: "NO_ANCLADO", diagnostico: DIAGNOSTICO_NO_ANCLADO };
+    return { estado: ESTADO_NO_ANCLADO, diagnostico: DIAGNOSTICO_NO_ANCLADO };
   }
   if (coincide) {
-    return { estado: "INTEGRO", diagnostico: DIAGNOSTICO_INTEGRO };
+    return { estado: ESTADO_INTEGRO, diagnostico: DIAGNOSTICO_INTEGRO };
   }
-  return { estado: "ALTERADO", diagnostico: DIAGNOSTICO_ALTERADO };
+  return { estado: ESTADO_ALTERADO, diagnostico: DIAGNOSTICO_ALTERADO };
 }
 
 // Selector del custom error RegistroNoEncontrado(string,string) del contrato.
@@ -292,19 +312,57 @@ function esRegistroNoEncontrado(error) {
 }
 
 /**
+ * Indica si un error proviene de la validación de la fecha de registro.
+ * `generarHashDiario` envuelve el error original, así que se inspecciona el
+ * mensaje en lugar de asumir una clase de error concreta.
+ *
+ * @param {any} error - Error capturado al generar el hash
+ * @returns {boolean} `true` si el error es de fecha de registro inválida
+ */
+function esErrorDeFechaDeRegistro(error) {
+  const mensaje = error && typeof error.message === "string" ? error.message : "";
+  return /fecha de registro inválida/i.test(mensaje);
+}
+
+/**
  * Audita si los registros almacenados en la base de datos coinciden con la verdad
- * inmutable en Sepolia, distinguiendo tres estados: íntegro, alterado y no anclado.
+ * inmutable en Sepolia. Distingue íntegro, alterado y no anclado, y agrega
+ * NO_AUDITABLE cuando la fecha local no permite calcular el hash de comparación.
  *
  * Se consulta una sola vez el hash anclado (operación de lectura gratuita). Si el
  * par paciente/fecha nunca fue anclado, `consultarHash` revierte con
  * RegistroNoEncontrado y la auditoría responde NO_ANCLADO en lugar de propagar la
  * excepción o acusar una alteración inexistente.
  *
+ * Un registro ya anclado con una fecha no canónica (por ejemplo "31/02/2026") sigue
+ * siendo auditable, pero no hay hash local con el que compararlo: ese caso se
+ * reporta como NO_AUDITABLE en lugar de dejar la auditoría inutilizable.
+ *
  * @param {Object} datosTomasActuales - Datos extraídos de la base de datos
+ * @param {Object} [opciones={}] - Opciones de inyección para pruebas
+ * @param {Function} [opciones.consultarHash=consultarHashEnBlockchain] - Consulta del hash anclado
  * @returns {Promise<Object>} Resultado de la auditoría de integridad
  */
-async function auditarIntegridadRegistro(datosTomasActuales) {
-  const hashCalculado = generarHashDiario(datosTomasActuales);
+async function auditarIntegridadRegistro(datosTomasActuales, opciones = {}) {
+  const consultarHash = opciones.consultarHash || consultarHashEnBlockchain;
+
+  let hashCalculado;
+  try {
+    hashCalculado = generarHashDiario(datosTomasActuales);
+  } catch (error) {
+    if (!esErrorDeFechaDeRegistro(error)) {
+      throw error;
+    }
+    return {
+      pacienteId: datosTomasActuales.paciente,
+      fecha: datosTomasActuales.fecha,
+      hashCalculado: null,
+      esIntegro: false,
+      estado: ESTADO_NO_AUDITABLE,
+      diagnostico: DIAGNOSTICO_NO_AUDITABLE,
+    };
+  }
+
   const pacienteId = datosTomasActuales.paciente;
   const fecha = datosTomasActuales.fecha;
 
@@ -312,7 +370,7 @@ async function auditarIntegridadRegistro(datosTomasActuales) {
   let existe = false;
 
   try {
-    const consulta = await consultarHashEnBlockchain(pacienteId, fecha);
+    const consulta = await consultarHash(pacienteId, fecha);
     hashAnclado = consulta.hashRegistro;
     existe = true;
   } catch (error) {
@@ -328,7 +386,7 @@ async function auditarIntegridadRegistro(datosTomasActuales) {
     pacienteId,
     fecha,
     hashCalculado,
-    esIntegro: existe && coincide,
+    esIntegro: coincide,
     ...diagnosticar(existe, coincide),
   };
 }
@@ -340,4 +398,12 @@ module.exports = {
   diagnosticar,
   esRegistroNoEncontrado,
   auditarIntegridadRegistro,
+  ESTADO_INTEGRO,
+  ESTADO_ALTERADO,
+  ESTADO_NO_ANCLADO,
+  ESTADO_NO_AUDITABLE,
+  DIAGNOSTICO_INTEGRO,
+  DIAGNOSTICO_ALTERADO,
+  DIAGNOSTICO_NO_ANCLADO,
+  DIAGNOSTICO_NO_AUDITABLE,
 };
