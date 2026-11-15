@@ -4,50 +4,48 @@ const {
   validarFechaRegistro,
   fechaDeRegistroHoy,
 } = require("../src/validacion");
-const { generarHashDiario } = require("../src/blockchainService");
+const {
+  generarHashDiario,
+  guardarHashEnBlockchain,
+} = require("../src/blockchainService");
+
+// Única tabla de fechas inválidas: cubre tanto los formatos que no son
+// "YYYY-MM-DD" como las fechas bien formadas que no existen en el calendario.
+const FECHAS_INVALIDAS = [
+  // Formato incorrecto
+  "31/02/2026",
+  "2026-13-01",
+  "2026-2-3",
+  "2026/02/28",
+  "28-02-2026",
+  "20260228",
+  "2026-02-28T00:00:00Z",
+  " 2026-02-28",
+  "2026-02-28 ",
+  "",
+  // Formato correcto pero inexistente en el calendario
+  "2026-02-31",
+  "2026-02-30",
+  "2026-04-31",
+  "2026-00-10",
+  "2026-12-00",
+  "2026-01-32",
+  "2025-02-29", // 2025 no es bisiesto
+  "2026-02-29", // 2026 tampoco es bisiesto
+];
 
 describe("Validación de la fecha de registro", function () {
-  describe("validarFechaRegistro: formatos rechazados", function () {
-    const formatosInvalidos = [
-      "31/02/2026",
-      "2026-13-01",
-      "2026-2-3",
-      "2026/02/28",
-      "28-02-2026",
-      "20260228",
-      "2026-02-28T00:00:00Z",
-      " 2026-02-28",
-      "2026-02-28 ",
-      "",
-    ];
-
-    formatosInvalidos.forEach((fecha) => {
+  describe("validarFechaRegistro: fechas inválidas", function () {
+    FECHAS_INVALIDAS.forEach((fecha) => {
       it(`rechaza "${fecha}"`, function () {
-        expect(() => validarFechaRegistro(fecha)).to.throw(/fecha de registro/i);
-      });
-    });
-
-    it("rechaza valores que no son texto", function () {
-      [null, undefined, 20260228, {}, ["2026-02-28"]].forEach((fecha) => {
         expect(() => validarFechaRegistro(fecha)).to.throw(/fecha de registro/i);
       });
     });
   });
 
-  describe("validarFechaRegistro: fechas inexistentes en el calendario", function () {
-    const fechasInexistentes = [
-      "2026-02-31",
-      "2026-02-30",
-      "2026-04-31",
-      "2026-00-10",
-      "2026-12-00",
-      "2026-01-32",
-      "2025-02-29", // 2025 no es bisiesto
-      "2026-02-29", // 2026 tampoco es bisiesto
-    ];
-
-    fechasInexistentes.forEach((fecha) => {
-      it(`rechaza "${fecha}"`, function () {
+  describe("validarFechaRegistro: valores que no son texto", function () {
+    it("rechaza valores que no son texto", function () {
+      [null, undefined, 20260228, {}, ["2026-02-28"]].forEach((fecha) => {
         expect(() => validarFechaRegistro(fecha)).to.throw(/fecha de registro/i);
       });
     });
@@ -116,7 +114,7 @@ describe("Validación de la fecha de registro", function () {
       };
     }
 
-    ["31/02/2026", "2026-13-01", "2026-2-3", "2026-02-31"].forEach((fecha) => {
+    FECHAS_INVALIDAS.forEach((fecha) => {
       it(`lanza un error comprensible con "${fecha}"`, function () {
         expect(() => generarHashDiario(datosConFecha(fecha))).to.throw(/fecha de registro/i);
       });
@@ -134,6 +132,53 @@ describe("Validación de la fecha de registro", function () {
 
       expect(hash).to.match(/^0x[0-9a-f]{64}$/);
       expect(generarHashDiario(datosConFecha("2026-11-13"))).to.equal(hash);
+    });
+  });
+
+  describe("guardarHashEnBlockchain: la fecha se valida antes de tocar la red", function () {
+    // Configuración deliberadamente inválida durante estas pruebas: si la función
+    // intentara resolver el contrato antes de validar la fecha, fallaría con un
+    // error de configuración y el test lo delataría.
+    const entornoOriginal = {
+      PRIVATE_KEY: process.env.PRIVATE_KEY,
+      CONTRACT_ADDRESS: process.env.CONTRACT_ADDRESS,
+      SEPOLIA_RPC_URL: process.env.SEPOLIA_RPC_URL,
+      ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY,
+    };
+
+    function restaurarEntorno() {
+      Object.entries(entornoOriginal).forEach(([clave, valor]) => {
+        if (valor === undefined) {
+          delete process.env[clave];
+        } else {
+          process.env[clave] = valor;
+        }
+      });
+    }
+
+    beforeEach(function () {
+      process.env.PRIVATE_KEY = "0".repeat(64);
+      process.env.CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+      process.env.SEPOLIA_RPC_URL = "http://127.0.0.1:1";
+      delete process.env.ALCHEMY_API_KEY;
+    });
+
+    afterEach(restaurarEntorno);
+    after(restaurarEntorno);
+
+    it("lanza el error de validación de fecha y no el de configuración", async function () {
+      const hash = `0x${"ab".repeat(32)}`;
+
+      let error;
+      try {
+        await guardarHashEnBlockchain("PAC_001", "31/02/2026", hash);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).to.be.instanceOf(Error);
+      expect(error.message).to.match(/fecha de registro inválida/i);
+      expect(error.message).to.not.match(/configuración inválida/i);
     });
   });
 });

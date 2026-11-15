@@ -6,8 +6,6 @@
  * @institution Universidad Provincial de Ezeiza (UPE) - Proyecto MiMedicación
  */
 
-"use strict";
-
 const ZONA_HORARIA_ARGENTINA = "America/Argentina/Buenos_Aires";
 
 // Formato estricto: cuatro dígitos de año, dos de mes y dos de día, separados por guiones.

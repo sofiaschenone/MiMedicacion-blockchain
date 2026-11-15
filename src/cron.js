@@ -108,13 +108,16 @@ async function ejecutarAnclajeDiario() {
       console.log(`------------------------------------------------------------------------`);
       console.log(`👤 Procesando Paciente: ${datosPaciente.paciente} (${datosPaciente.nombrePaciente})`);
 
-      // A. Generación del Hash criptográfico SHA-256 (Off-chain)
-      const hashCalculado = generarHashDiario(datosPaciente);
-      console.log(`🔒 Hash Criptográfico SHA-256 generado localmente:`);
-      console.log(`   ${hashCalculado}`);
-
-      // B. Anclaje inmutable en Sepolia (On-chain)
+      // La generación del hash y el anclaje se tratan como una unidad por paciente:
+      // si un registro tiene una fecha inválida, se reporta como fallido y el lote
+      // continúa con los demás en lugar de abortar el proceso completo.
       try {
+        // A. Generación del Hash criptográfico SHA-256 (Off-chain)
+        const hashCalculado = generarHashDiario(datosPaciente);
+        console.log(`🔒 Hash Criptográfico SHA-256 generado localmente:`);
+        console.log(`   ${hashCalculado}`);
+
+        // B. Anclaje inmutable en Sepolia (On-chain)
         const resultado = await guardarHashEnBlockchain(
           datosPaciente.paciente,
           datosPaciente.fecha,
@@ -125,8 +128,8 @@ async function ejecutarAnclajeDiario() {
         console.log(`   Tx Hash: ${resultado.transactionHash}`);
         console.log(`   Bloque : ${resultado.blockNumber}`);
         console.log(`   Enlace : ${resultado.explorerUrl}`);
-      } catch (errBlockchain) {
-        console.error(`❌ Error al notariar paciente ${datosPaciente.paciente}: ${errBlockchain.message}`);
+      } catch (errPaciente) {
+        console.error(`❌ Error al notariar paciente ${datosPaciente.paciente}: ${errPaciente.message}`);
         // En producción se registraría en un sistema de alertas (Sentry, Slack, etc.)
       }
     }
