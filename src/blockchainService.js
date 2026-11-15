@@ -193,32 +193,143 @@ async function consultarHashEnBlockchain(pacienteId, fecha) {
   };
 }
 
+// Textos de diagnóstico de la auditoría. Se mantienen juntos para que los tres
+// estados sean revisables en un solo lugar. El de NO_ANCLADO evita la acusación
+// de fraude: la ausencia de un anclaje no es una manipulación de los datos.
+const DIAGNOSTICO_INTEGRO =
+  "INTEGRIDAD CONFIRMADA: El registro no ha sufrido ninguna modificación desde su notariado en Sepolia.";
+const DIAGNOSTICO_ALTERADO =
+  "ALERTA DE SEGURIDAD: Los datos locales discrepan del hash en la blockchain (posible alteración o fraude).";
+const DIAGNOSTICO_NO_ANCLADO =
+  "SIN ANCLAJE: El registro no está anclado en la blockchain, no existe un hash de referencia para esa fecha. Su ausencia NO es una alteración ni un fraude.";
+
 /**
- * Valida si los registros almacenados en la base de datos coinciden con la verdad inmutable en Sepolia.
- * Si algún cuidador, atacante o administrador alteró un solo carácter en la base de datos,
- * los hashes diferirán y la función retornará 'false'.
+ * Traduce el resultado de la verificación a los tres estados posibles de la auditoría.
+ *
+ * Verificar y auditar no son lo mismo: `verificarHash` del contrato devuelve `false`
+ * tanto cuando el hash no coincide como cuando el registro nunca se ancló. Interpretar
+ * ese `false` como fraude acusa injustamente a un paciente sin registro sellado. Esta
+ * función es pura (sin red ni credenciales) para que la distinción sea verificable.
+ *
+ * @param {boolean} existe - Indica si el registro está anclado en la blockchain
+ * @param {boolean} coincide - Indica si el hash local coincide con el anclado
+ * @returns {{ estado: "INTEGRO"|"ALTERADO"|"NO_ANCLADO", diagnostico: string }}
+ */
+function diagnosticar(existe, coincide) {
+  if (!existe) {
+    return { estado: "NO_ANCLADO", diagnostico: DIAGNOSTICO_NO_ANCLADO };
+  }
+  if (coincide) {
+    return { estado: "INTEGRO", diagnostico: DIAGNOSTICO_INTEGRO };
+  }
+  return { estado: "ALTERADO", diagnostico: DIAGNOSTICO_ALTERADO };
+}
+
+// Selector del custom error RegistroNoEncontrado(string,string) del contrato.
+// Se deriva de la firma para no depender de un valor hexadecimal escrito a mano.
+const SELECTOR_REGISTRO_NO_ENCONTRADO = ethers
+  .id("RegistroNoEncontrado(string,string)")
+  .slice(0, 10)
+  .toLowerCase();
+
+const NOMBRE_REGISTRO_NO_ENCONTRADO = "RegistroNoEncontrado";
+
+/**
+ * Recolecta los textos donde ethers o el proveedor RPC pueden exponer un error.
+ * Los proveedores no son uniformes: a veces alcanza con `message`, a veces hace
+ * falta `reason` o el `data` crudo, y a veces el error original viene anidado.
+ *
+ * @param {any} error - Error capturado
+ * @param {number} profundidad - Nivel de anidamiento (acotado para cortar ciclos)
+ * @returns {string[]} Pistas de texto del error
+ */
+function recolectarPistasDeError(error, profundidad = 0) {
+  if (error === null || error === undefined || profundidad > 3) {
+    return [];
+  }
+  if (typeof error === "string") {
+    return [error];
+  }
+  if (typeof error !== "object") {
+    return [];
+  }
+
+  const pistas = [];
+  const clavesConTexto = ["name", "errorName", "reason", "shortMessage", "message", "data"];
+  for (const clave of clavesConTexto) {
+    const valor = error[clave];
+    if (typeof valor === "string") {
+      pistas.push(valor);
+    } else if (valor !== null && typeof valor === "object") {
+      pistas.push(...recolectarPistasDeError(valor, profundidad + 1));
+    }
+  }
+
+  // Estructuras habituales donde ethers envuelve el error original.
+  for (const clave of ["error", "info", "revert"]) {
+    pistas.push(...recolectarPistasDeError(error[clave], profundidad + 1));
+  }
+
+  return pistas;
+}
+
+/**
+ * Detecta si un error de ethers corresponde al revert RegistroNoEncontrado del contrato.
+ * No asume una única forma: busca el nombre del custom error en los textos y su
+ * selector en los datos crudos del revert.
+ *
+ * @param {any} error - Error capturado al llamar al contrato
+ * @returns {boolean} `true` solo si el error es RegistroNoEncontrado
+ */
+function esRegistroNoEncontrado(error) {
+  return recolectarPistasDeError(error).some((pista) => {
+    const texto = pista.toLowerCase();
+    return (
+      texto.includes(NOMBRE_REGISTRO_NO_ENCONTRADO.toLowerCase()) ||
+      texto.includes(SELECTOR_REGISTRO_NO_ENCONTRADO)
+    );
+  });
+}
+
+/**
+ * Audita si los registros almacenados en la base de datos coinciden con la verdad
+ * inmutable en Sepolia, distinguiendo tres estados: íntegro, alterado y no anclado.
+ *
+ * Se consulta una sola vez el hash anclado (operación de lectura gratuita). Si el
+ * par paciente/fecha nunca fue anclado, `consultarHash` revierte con
+ * RegistroNoEncontrado y la auditoría responde NO_ANCLADO en lugar de propagar la
+ * excepción o acusar una alteración inexistente.
  *
  * @param {Object} datosTomasActuales - Datos extraídos de la base de datos
  * @returns {Promise<Object>} Resultado de la auditoría de integridad
  */
 async function auditarIntegridadRegistro(datosTomasActuales) {
   const hashCalculado = generarHashDiario(datosTomasActuales);
-  const contrato = obtenerContratoConectado();
+  const pacienteId = datosTomasActuales.paciente;
+  const fecha = datosTomasActuales.fecha;
 
-  const esValido = await contrato.verificarHash(
-    datosTomasActuales.paciente,
-    datosTomasActuales.fecha,
-    hashCalculado
-  );
+  let hashAnclado = null;
+  let existe = false;
+
+  try {
+    const consulta = await consultarHashEnBlockchain(pacienteId, fecha);
+    hashAnclado = consulta.hashRegistro;
+    existe = true;
+  } catch (error) {
+    // La ausencia de anclaje es un estado válido de la auditoría, no una falla.
+    if (!esRegistroNoEncontrado(error)) {
+      throw error;
+    }
+  }
+
+  const coincide = existe && hashAnclado.toLowerCase() === hashCalculado.toLowerCase();
 
   return {
-    pacienteId: datosTomasActuales.paciente,
-    fecha: datosTomasActuales.fecha,
+    pacienteId,
+    fecha,
     hashCalculado,
-    esIntegro: esValido,
-    diagnostico: esValido
-      ? "INTEGRIDAD CONFIRMADA: El registro no ha sufrido ninguna modificación desde su notariado en Sepolia."
-      : "ALERTA DE SEGURIDAD: Los datos locales discrepan del hash en la blockchain (posible alteración o fraude).",
+    esIntegro: existe && coincide,
+    ...diagnosticar(existe, coincide),
   };
 }
 
@@ -226,5 +337,7 @@ module.exports = {
   generarHashDiario,
   guardarHashEnBlockchain,
   consultarHashEnBlockchain,
+  diagnosticar,
+  esRegistroNoEncontrado,
   auditarIntegridadRegistro,
 };
