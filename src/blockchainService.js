@@ -85,6 +85,42 @@ function generarHashDiario(datosTomas) {
 // HashInvalido, y ese mensaje ya nombra la causa correcta.
 const HASH_BYTES32 = /^0x[0-9a-fA-F]{64}$/;
 
+// Códigos legibles por máquina de los errores de anclaje. El mensaje es para el
+// operador y puede cambiar; el código permite distinguir el caso esperable
+// "ya estaba anclado" sin inspeccionar el texto.
+const CODIGO_YA_ANCLADO = "YA_ANCLADO";
+const CODIGO_IDENTIFICADOR_VACIO = "IDENTIFICADOR_VACIO";
+const CODIGO_FECHA_VACIA = "FECHA_VACIA";
+const CODIGO_FECHA_INVALIDA = "FECHA_INVALIDA";
+const CODIGO_HASH_INVALIDO = "HASH_INVALIDO";
+const CODIGO_ERROR_DE_CONFIGURACION = "ERROR_DE_CONFIGURACION";
+const CODIGO_ERROR_DE_ANCLAJE = "ERROR_DE_ANCLAJE";
+
+// Una sola tabla traduce el custom error del contrato a su código. Los errores
+// que no provienen del contrato caen en el código genérico o, si son de
+// configuración, en ERROR_DE_CONFIGURACION.
+const CODIGO_POR_CAUSA = Object.freeze({
+  IdentificadorVacio: CODIGO_IDENTIFICADOR_VACIO,
+  FechaVacia: CODIGO_FECHA_VACIA,
+  HashInvalido: CODIGO_HASH_INVALIDO,
+  RegistroYaExistente: CODIGO_YA_ANCLADO,
+});
+
+/**
+ * Construye un error de anclaje con mensaje, `codigo` legible por máquina y la
+ * causa original cuando existe.
+ *
+ * @param {string} mensaje - Mensaje para el operador
+ * @param {string} codigo - Código estable para clasificar el error
+ * @param {any} [cause] - Error original que provocó la traducción
+ * @returns {Error} Error con `codigo` y `cause`
+ */
+function errorDeAnclaje(mensaje, codigo, cause) {
+  const error = new Error(mensaje, { cause });
+  error.codigo = codigo;
+  return error;
+}
+
 /**
  * Valida la forma del hash antes de tocar la red.
  *
@@ -99,9 +135,10 @@ const HASH_BYTES32 = /^0x[0-9a-fA-F]{64}$/;
  */
 function validarFormaDelHash(hash, pacienteId, fecha) {
   if (typeof hash !== "string" || !HASH_BYTES32.test(hash)) {
-    throw new Error(
+    throw errorDeAnclaje(
       `Hash inválido: el hash del registro ${ubicacionDelRegistro(pacienteId, fecha)} ` +
-        "no es un bytes32 válido; se esperaba '0x' seguido de 64 dígitos hexadecimales."
+        "no es un bytes32 válido; se esperaba '0x' seguido de 64 dígitos hexadecimales.",
+      CODIGO_HASH_INVALIDO
     );
   }
 }
@@ -163,13 +200,17 @@ async function guardarHashEnBlockchain(pacienteId, fecha, hash, opciones = {}) {
     validarFechaRegistro(fecha);
   } catch (error) {
     if (fecha === "") {
-      throw new Error(mensajeParaCausaDeAnclaje("FechaVacia", pacienteId, fecha), {
-        cause: error,
-      });
+      throw errorDeAnclaje(
+        mensajeParaCausaDeAnclaje("FechaVacia", pacienteId, fecha),
+        CODIGO_FECHA_VACIA,
+        error
+      );
     }
-    throw new Error(`No se puede anclar el registro: ${error.message}`, {
-      cause: error,
-    });
+    throw errorDeAnclaje(
+      `No se puede anclar el registro: ${error.message}`,
+      CODIGO_FECHA_INVALIDA,
+      error
+    );
   }
 
   // La forma del hash también se valida antes de resolver la configuración y de
@@ -459,6 +500,28 @@ function mensajeParaCausaDeAnclaje(causa, pacienteId, fecha) {
 }
 
 /**
+ * Elige el código legible por máquina de un anclaje fallido.
+ *
+ * Los custom errors del contrato tienen un código propio; un fallo de
+ * configuración conserva su código para que el llamador no lo confunda con un
+ * revert del contrato; cualquier otro fallo se reporta con el código genérico.
+ *
+ * @param {string|null} causa - Nombre del custom error del contrato
+ * @param {any} error - Error capturado al anclar
+ * @returns {string} Código estable del error
+ */
+function codigoDeErrorDeAnclaje(causa, error) {
+  if (causa !== null && Object.prototype.hasOwnProperty.call(CODIGO_POR_CAUSA, causa)) {
+    return CODIGO_POR_CAUSA[causa];
+  }
+
+  const detalle = error && typeof error.message === "string" ? error.message : "";
+  return /configuración inválida/i.test(detalle)
+    ? CODIGO_ERROR_DE_CONFIGURACION
+    : CODIGO_ERROR_DE_ANCLAJE;
+}
+
+/**
  * Traduce un error de anclaje a un mensaje que nombra su causa real.
  *
  * Un revert del contrato se reporta por su custom error. Un fallo que no es un
@@ -472,17 +535,19 @@ function mensajeParaCausaDeAnclaje(causa, pacienteId, fecha) {
  */
 function traducirErrorDeAnclaje(error, pacienteId, fecha) {
   const causa = clasificarRevertDelContrato(error);
+  const codigo = codigoDeErrorDeAnclaje(causa, error);
   const mensaje = mensajeParaCausaDeAnclaje(causa, pacienteId, fecha);
   if (mensaje !== null) {
-    return new Error(mensaje, { cause: error });
+    return errorDeAnclaje(mensaje, codigo, error);
   }
 
   const detalle =
     error && typeof error.message === "string" ? error.message : String(error);
 
-  return new Error(
+  return errorDeAnclaje(
     `No se pudo anclar el registro ${ubicacionDelRegistro(pacienteId, fecha)}: ${detalle}`,
-    { cause: error }
+    codigo,
+    error
   );
 }
 
@@ -575,6 +640,13 @@ module.exports = {
   esRegistroNoEncontrado,
   auditarIntegridadRegistro,
   ERRORES_DEL_CONTRATO,
+  CODIGO_YA_ANCLADO,
+  CODIGO_IDENTIFICADOR_VACIO,
+  CODIGO_FECHA_VACIA,
+  CODIGO_FECHA_INVALIDA,
+  CODIGO_HASH_INVALIDO,
+  CODIGO_ERROR_DE_CONFIGURACION,
+  CODIGO_ERROR_DE_ANCLAJE,
   ESTADO_INTEGRO,
   ESTADO_ALTERADO,
   ESTADO_NO_ANCLADO,

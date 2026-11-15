@@ -7,9 +7,18 @@
  */
 
 const cron = require("node-cron");
-const { generarHashDiario, guardarHashEnBlockchain } = require("./blockchainService");
+const {
+  generarHashDiario,
+  guardarHashEnBlockchain,
+  CODIGO_YA_ANCLADO,
+} = require("./blockchainService");
 const { fechaDeRegistroHoy } = require("./validacion");
-const { resumirLote } = require("./resumen");
+const {
+  resumirLote,
+  RESULTADO_ANCLADO,
+  RESULTADO_YA_ANCLADO,
+  RESULTADO_FALLIDO,
+} = require("./resumen");
 
 /**
  * Función que simula la consulta a la base de datos relacional/NoSQL del backend
@@ -87,8 +96,24 @@ function obtenerTomasDelDiaDeBaseDeDatos(fecha) {
 
 /**
  * Función principal que orquesta el anclaje criptográfico de todos los pacientes.
+ *
+ * La fuente de registros y la función de anclaje son inyectables para poder
+ * ejercitar el cierre completo sin red ni credenciales. En producción se usan
+ * los valores por defecto.
+ *
+ * @param {Object} [opciones={}] - Dependencias inyectables
+ * @param {Function} [opciones.obtenerRegistros=obtenerTomasDelDiaDeBaseDeDatos]
+ *   Recibe la fecha del día y devuelve los registros a anclar
+ * @param {Function} [opciones.anclarRegistro=guardarHashEnBlockchain]
+ *   Recibe paciente, fecha y hash; devuelve el recibo del anclaje
+ * @returns {Promise<Object|undefined>} Resumen del lote, o `undefined` si hubo
+ *   un error crítico antes de poder procesar pacientes
  */
-async function ejecutarAnclajeDiario() {
+async function ejecutarAnclajeDiario(opciones = {}) {
+  const obtenerRegistros =
+    opciones.obtenerRegistros || obtenerTomasDelDiaDeBaseDeDatos;
+  const anclarRegistro = opciones.anclarRegistro || guardarHashEnBlockchain;
+
   // Día calendario en America/Argentina/Buenos_Aires: a las 23:59 ART en UTC ya es
   // el día siguiente, por eso no se usa toISOString().
   const hoy = fechaDeRegistroHoy();
@@ -101,7 +126,7 @@ async function ejecutarAnclajeDiario() {
 
   try {
     // 1. Obtener registros consolidados del día desde la base de datos
-    const registrosPacientes = obtenerTomasDelDiaDeBaseDeDatos(hoy);
+    const registrosPacientes = await obtenerRegistros(hoy);
     console.log(`[Cron] Se encontraron ${registrosPacientes.length} pacientes con actividad en el día.\n`);
 
     // 2. Procesar paciente por paciente
@@ -123,7 +148,7 @@ async function ejecutarAnclajeDiario() {
         console.log(`   ${hashCalculado}`);
 
         // B. Anclaje inmutable en Sepolia (On-chain)
-        const resultado = await guardarHashEnBlockchain(
+        const resultado = await anclarRegistro(
           datosPaciente.paciente,
           datosPaciente.fecha,
           hashCalculado
@@ -134,18 +159,24 @@ async function ejecutarAnclajeDiario() {
         console.log(`   Bloque : ${resultado.blockNumber}`);
         console.log(`   Enlace : ${resultado.explorerUrl}`);
 
-        resultadosDelLote.push({
-          paciente: datosPaciente.paciente,
-          exito: true,
-          motivo: null,
-        });
+        resultadosDelLote.push({ resultado: RESULTADO_ANCLADO });
       } catch (errPaciente) {
-        console.error(`❌ Error al notariar paciente ${datosPaciente.paciente}: ${errPaciente.message}`);
-        // En producción se registraría en un sistema de alertas (Sentry, Slack, etc.)
+        // El código del error distingue un anclaje previo de una falla real: el
+        // registro ya está en la cadena, no hay nada que reintentar.
+        const yaEstabaAnclado =
+          errPaciente !== null &&
+          typeof errPaciente === "object" &&
+          errPaciente.codigo === CODIGO_YA_ANCLADO;
+
+        if (yaEstabaAnclado) {
+          console.log(`ℹ️ El registro del paciente ${datosPaciente.paciente} ya estaba anclado previamente; no se re-ancló.`);
+        } else {
+          console.error(`❌ Error al notariar paciente ${datosPaciente.paciente}: ${errPaciente.message}`);
+          // En producción se registraría en un sistema de alertas (Sentry, Slack, etc.)
+        }
+
         resultadosDelLote.push({
-          paciente: datosPaciente.paciente,
-          exito: false,
-          motivo: errPaciente.message,
+          resultado: yaEstabaAnclado ? RESULTADO_YA_ANCLADO : RESULTADO_FALLIDO,
         });
       }
     }
@@ -155,6 +186,8 @@ async function ejecutarAnclajeDiario() {
     console.log("\n========================================================================");
     console.log(resumen.encabezado);
     console.log("========================================================================\n");
+
+    return resumen;
   } catch (error) {
     console.error("[Cron] Error crítico durante la ejecución del proceso diario:", error);
   }
@@ -167,19 +200,29 @@ async function ejecutarAnclajeDiario() {
 // ==============================================================================
 const CRON_EXPRESSION = "59 23 * * *";
 
-console.log("🚀 Servicio de Automatización MiMedicación iniciado.");
-console.log(`⏳ Tarea programada configurada con cron expression: '${CRON_EXPRESSION}' (Todos los días a las 23:59hs)`);
+// El scheduler y la ejecución inmediata sólo se activan cuando el archivo se
+// ejecuta como programa. Importarlo desde un test no debe arrancar node-cron.
+if (require.main === module) {
+  console.log("🚀 Servicio de Automatización MiMedicación iniciado.");
+  console.log(`⏳ Tarea programada configurada con cron expression: '${CRON_EXPRESSION}' (Todos los días a las 23:59hs)`);
 
-cron.schedule(CRON_EXPRESSION, async () => {
-  console.log("[Planificador] Son las 23:59. Disparando rutina de anclaje diario...");
-  await ejecutarAnclajeDiario();
-});
-
-// Soporte para ejecución inmediata en vivo (para demostración en clase o tests)
-// Ejecutar con: node src/cron.js --now
-if (process.argv.includes("--now") || process.argv.includes("--test")) {
-  console.log("⚡ Flag de ejecución inmediata detectado (--now). Corriendo simulación de demostración ahora...");
-  ejecutarAnclajeDiario().then(() => {
-    console.log("Demostración finalizada. Manteniendo listener activo...");
+  cron.schedule(CRON_EXPRESSION, async () => {
+    console.log("[Planificador] Son las 23:59. Disparando rutina de anclaje diario...");
+    await ejecutarAnclajeDiario();
   });
+
+  // Soporte para ejecución inmediata en vivo (para demostración en clase o tests)
+  // Ejecutar con: node src/cron.js --now
+  if (process.argv.includes("--now") || process.argv.includes("--test")) {
+    console.log("⚡ Flag de ejecución inmediata detectado (--now). Corriendo simulación de demostración ahora...");
+    ejecutarAnclajeDiario().then(() => {
+      console.log("Demostración finalizada. Manteniendo listener activo...");
+    });
+  }
 }
+
+module.exports = {
+  ejecutarAnclajeDiario,
+  obtenerTomasDelDiaDeBaseDeDatos,
+  CRON_EXPRESSION,
+};
