@@ -9,6 +9,8 @@ const { ethers } = require("ethers");
 const crypto = require("crypto");
 require("dotenv").config();
 
+const { validarFechaRegistro } = require("./validacion");
+
 // Carga del ABI compilado del Smart Contract
 const contractAbi = require("./contractAbi.json");
 
@@ -54,6 +56,14 @@ function canonicalizarObjeto(obj) {
 function generarHashDiario(datosTomas) {
   if (!datosTomas || typeof datosTomas !== "object") {
     throw new Error("El argumento 'datosTomas' debe ser un objeto JSON válido.");
+  }
+
+  // 0. La fecha de registro debe ser válida antes de calcular cualquier hash:
+  //    un registro con fecha inválida nunca debe llegar a anclarse on-chain.
+  try {
+    validarFechaRegistro(datosTomas.fecha);
+  } catch (error) {
+    throw new Error(`No se puede generar el hash diario: ${error.message}`);
   }
 
   // 1. Asegurar serialización determinista

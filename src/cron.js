@@ -8,6 +8,7 @@
 
 const cron = require("node-cron");
 const { generarHashDiario, guardarHashEnBlockchain } = require("./blockchainService");
+const { fechaDeRegistroHoy } = require("./validacion");
 
 /**
  * Función que simula la consulta a la base de datos relacional/NoSQL del backend
@@ -87,7 +88,9 @@ function obtenerTomasDelDiaDeBaseDeDatos(fecha) {
  * Función principal que orquesta el anclaje criptográfico de todos los pacientes.
  */
 async function ejecutarAnclajeDiario() {
-  const hoy = new Date().toISOString().split("T")[0]; // Formato "YYYY-MM-DD"
+  // Día calendario en America/Argentina/Buenos_Aires: a las 23:59 ART en UTC ya es
+  // el día siguiente, por eso no se usa toISOString().
+  const hoy = fechaDeRegistroHoy();
   
   console.log("\n========================================================================");
   console.log(`⏰ [CRON JOB INICIADO] Proceso de Cierre Diario y Notariado Blockchain`);
