@@ -2,10 +2,30 @@ const { expect } = require("chai");
 const { ethers } = require("ethers");
 
 const {
-  clasificarRevertDeAnclaje,
+  clasificarRevertDelContrato,
   esRegistroNoEncontrado,
   guardarHashEnBlockchain,
+  ERRORES_DEL_CONTRATO,
 } = require("../src/blockchainService");
+
+/**
+ * Los custom errors se toman de la tabla que exporta el servicio: el test no
+ * mantiene una copia de las firmas que pueda quedar desactualizada.
+ */
+const NOMBRES_DE_ERROR = ERRORES_DEL_CONTRATO.map(({ nombre }) => nombre);
+
+// Mismo criterio que el servicio: el selector se deriva de la firma, sin
+// escribir valores hexadecimales a mano.
+function selectorDe(nombre) {
+  const { firma } = ERRORES_DEL_CONTRATO.find((error) => error.nombre === nombre);
+  return ethers.id(firma).slice(0, 10).toLowerCase();
+}
+
+function datosDeRevert(nombre) {
+  return `${selectorDe(nombre)}${"00".repeat(64)}`;
+}
+
+const CONFLICTO_DE_INMUTABILIDAD = /inmutabilidad|ya ha sido anclado/i;
 
 /**
  * Un revert del contrato no siempre llega con el mismo aspecto: algunos nodos
@@ -14,48 +34,30 @@ const {
  * errors del contrato en todas esas formas, y devolver `null` cuando el error
  * no proviene del contrato (red, credenciales, etc.).
  */
-const FIRMAS_DE_ERROR = {
-  IdentificadorVacio: "IdentificadorVacio()",
-  FechaVacia: "FechaVacia()",
-  HashInvalido: "HashInvalido()",
-  RegistroYaExistente: "RegistroYaExistente(string,string)",
-  RegistroNoEncontrado: "RegistroNoEncontrado(string,string)",
-};
-
-const NOMBRES_DE_ERROR = Object.keys(FIRMAS_DE_ERROR);
-
-// Mismo criterio que el servicio: el selector se deriva de la firma, sin
-// escribir valores hexadecimales a mano.
-function selectorDe(nombre) {
-  return ethers.id(FIRMAS_DE_ERROR[nombre]).slice(0, 10).toLowerCase();
-}
-
-function datosDeRevert(nombre) {
-  return `${selectorDe(nombre)}${"00".repeat(64)}`;
-}
-
-describe("Clasificación de reverts del contrato al anclar", function () {
+describe("Clasificación de reverts del contrato", function () {
   it("reconoce los cinco custom errors por el selector de los datos crudos", function () {
     NOMBRES_DE_ERROR.forEach((nombre) => {
       const error = { code: "CALL_EXCEPTION", data: datosDeRevert(nombre) };
-      expect(clasificarRevertDeAnclaje(error), nombre).to.equal(nombre);
+      expect(clasificarRevertDelContrato(error), nombre).to.equal(nombre);
     });
   });
 
   it("reconoce los cinco custom errors por el nombre en el mensaje", function () {
     NOMBRES_DE_ERROR.forEach((nombre) => {
+      const { firma } = ERRORES_DEL_CONTRATO.find((error) => error.nombre === nombre);
       const error = new Error(
         "VM Exception while processing transaction: reverted with custom error " +
-          `'${FIRMAS_DE_ERROR[nombre]}'`
+          `'${firma}'`
       );
-      expect(clasificarRevertDeAnclaje(error), nombre).to.equal(nombre);
+      expect(clasificarRevertDelContrato(error), nombre).to.equal(nombre);
     });
   });
 
   it("reconoce los cinco custom errors por el reason decodificado por ethers", function () {
     NOMBRES_DE_ERROR.forEach((nombre) => {
-      const error = { reason: FIRMAS_DE_ERROR[nombre], message: "execution reverted" };
-      expect(clasificarRevertDeAnclaje(error), nombre).to.equal(nombre);
+      const { firma } = ERRORES_DEL_CONTRATO.find((error) => error.nombre === nombre);
+      const error = { reason: firma, message: "execution reverted" };
+      expect(clasificarRevertDelContrato(error), nombre).to.equal(nombre);
     });
   });
 
@@ -68,7 +70,7 @@ describe("Clasificación de reverts del contrato al anclar", function () {
       data: datosDeRevert("HashInvalido"),
     };
 
-    expect(clasificarRevertDeAnclaje(error)).to.equal("HashInvalido");
+    expect(clasificarRevertDelContrato(error)).to.equal("HashInvalido");
   });
 
   it("devuelve null para un error de red, sin datos de revert", function () {
@@ -77,34 +79,28 @@ describe("Clasificación de reverts del contrato al anclar", function () {
       message: "could not detect network (event=\"noNetwork\", code=NETWORK_ERROR)",
     };
 
-    expect(clasificarRevertDeAnclaje(error)).to.be.null;
+    expect(clasificarRevertDelContrato(error)).to.be.null;
   });
 
   it("devuelve null para null, undefined y valores sin información del contrato", function () {
-    expect(clasificarRevertDeAnclaje(null)).to.be.null;
-    expect(clasificarRevertDeAnclaje(undefined)).to.be.null;
-    expect(clasificarRevertDeAnclaje("timeout")).to.be.null;
-    expect(clasificarRevertDeAnclaje({ code: "INSUFFICIENT_FUNDS" })).to.be.null;
+    expect(clasificarRevertDelContrato(null)).to.be.null;
+    expect(clasificarRevertDelContrato(undefined)).to.be.null;
+    expect(clasificarRevertDelContrato("timeout")).to.be.null;
+    expect(clasificarRevertDelContrato({ code: "INSUFFICIENT_FUNDS" })).to.be.null;
   });
 
   it("devuelve null para un selector desconocido", function () {
     expect(
-      clasificarRevertDeAnclaje({ data: `0xdeadbeef${"00".repeat(64)}` })
+      clasificarRevertDelContrato({ data: `0xdeadbeef${"00".repeat(64)}` })
     ).to.be.null;
   });
 
-  it("conserva esRegistroNoEncontrado reconociendo sólo su propio error", function () {
-    expect(
-      esRegistroNoEncontrado({ data: datosDeRevert("RegistroNoEncontrado") })
-    ).to.be.true;
-
-    NOMBRES_DE_ERROR.filter((nombre) => nombre !== "RegistroNoEncontrado").forEach(
-      (nombre) => {
-        expect(
-          esRegistroNoEncontrado({ data: datosDeRevert(nombre) }),
-          nombre
-        ).to.be.false;
-      }
+  it("esRegistroNoEncontrado sigue delegando en el clasificador", function () {
+    // Las tres formas del revert están cubiertas en auditoria.test.js; acá sólo
+    // se verifica que el wrapper siga siendo el mismo predicado.
+    const error = { data: datosDeRevert("RegistroNoEncontrado") };
+    expect(esRegistroNoEncontrado(error)).to.equal(
+      clasificarRevertDelContrato(error) === "RegistroNoEncontrado"
     );
   });
 });
@@ -127,14 +123,14 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     };
   }
 
-  async function anclarConError(error, argumentos = {}) {
+  async function anclarConError(
+    error,
+    { pacienteId = "PAC_001", fecha = FECHA, hash = HASH } = {}
+  ) {
     try {
-      await guardarHashEnBlockchain(
-        argumentos.pacienteId === undefined ? "PAC_001" : argumentos.pacienteId,
-        argumentos.fecha === undefined ? FECHA : argumentos.fecha,
-        argumentos.hash === undefined ? HASH : argumentos.hash,
-        { obtenerContrato: () => contratoQueRevierte(error) }
-      );
+      await guardarHashEnBlockchain(pacienteId, fecha, hash, {
+        obtenerContrato: () => contratoQueRevierte(error),
+      });
     } catch (capturado) {
       return capturado;
     }
@@ -161,7 +157,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
 
     expect(error.message).to.match(/identificador de paciente inválido/i);
     expect(error.message).to.match(/vacío/i);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
   });
 
   it("nombra la fecha vacía en lugar de la inmutabilidad", async function () {
@@ -172,7 +168,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
 
     expect(error.message).to.match(/fecha de registro inválida/i);
     expect(error.message).to.match(/vacía/i);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
   });
 
   it("nombra el hash nulo en lugar de la inmutabilidad", async function () {
@@ -183,18 +179,17 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
 
     expect(error.message).to.match(/hash inválido/i);
     expect(error.message).to.match(/nulo/i);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
   });
 
-  it("trata RegistroNoEncontrado como error inesperado, no como conflicto", async function () {
+  it("no traduce RegistroNoEncontrado como si fuera un error de anclaje", async function () {
     const error = await anclarConError({
       code: "CALL_EXCEPTION",
       data: datosDeRevert("RegistroNoEncontrado"),
     });
 
-    expect(error.message).to.match(/inesperado/i);
-    expect(error.message).to.match(/no corresponde/i);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.match(/no se pudo anclar el registro/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
   });
 
   it("reconoce el revert sólo por el data, como lo entrega Sepolia", async function () {
@@ -205,7 +200,18 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     });
 
     expect(error.message).to.match(/hash inválido/i);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+  });
+
+  it("conserva el error original como cause en toda causa traducida", async function () {
+    const original = {
+      code: "CALL_EXCEPTION",
+      data: datosDeRevert("IdentificadorVacio"),
+    };
+
+    const error = await anclarConError(original, { pacienteId: "" });
+
+    expect(error.cause).to.equal(original);
   });
 
   it("envuelve con contexto un error de red y no afirma nada sobre inmutabilidad", async function () {
@@ -218,7 +224,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
 
     expect(error.message).to.match(/no se pudo anclar el registro/i);
     expect(error.message).to.include(original.message);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
     expect(error.cause).to.equal(original);
   });
 
@@ -240,7 +246,41 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     expect(seResolvioElContrato).to.be.false;
     expect(error.message).to.match(/fecha de registro inválida/i);
     expect(error.message).to.match(/vacía/i);
-    expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+    expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+    expect(error.cause).to.be.instanceOf(Error);
+  });
+
+  describe("forma del hash", function () {
+    const HASHES_INVALIDOS = {
+      null: null,
+      undefined: undefined,
+      '"0x"': "0x",
+      "de longitud incorrecta": `0x${"ab".repeat(31)}`,
+      "con caracteres no hexadecimales": `0x${"zz".repeat(32)}`,
+    };
+
+    Object.entries(HASHES_INVALIDOS).forEach(([caso, hash]) => {
+      it(`rechaza un hash ${caso} antes de tocar la red`, async function () {
+        let seResolvioElContrato = false;
+
+        let error;
+        try {
+          await guardarHashEnBlockchain("PAC_001", FECHA, hash, {
+            obtenerContrato: () => {
+              seResolvioElContrato = true;
+              return contratoQueRevierte(new Error("No debería llegar al contrato."));
+            },
+          });
+        } catch (capturado) {
+          error = capturado;
+        }
+
+        expect(seResolvioElContrato).to.be.false;
+        expect(error.message).to.match(/hash inválido/i);
+        expect(error.message).to.include(FECHA);
+        expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+      });
+    });
   });
 
   it("sin PRIVATE_KEY falla por configuración y no por inmutabilidad", async function () {
@@ -259,7 +299,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
 
       expect(error.message).to.match(/configuración inválida/i);
       expect(error.message).to.match(/no se pudo anclar el registro/i);
-      expect(error.message).to.not.match(/inmutabilidad|ya ha sido anclado/i);
+      expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
     } finally {
       if (claveOriginal === undefined) {
         delete process.env.PRIVATE_KEY;
