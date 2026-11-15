@@ -80,6 +80,32 @@ function generarHashDiario(datosTomas) {
   return `0x${hashHex}`;
 }
 
+// Forma canónica de un bytes32 para el ABI de ethers: '0x' + 64 dígitos hex.
+// No se inspecciona el valor cero: bytes32(0) lo rechaza el contrato con
+// HashInvalido, y ese mensaje ya nombra la causa correcta.
+const HASH_BYTES32 = /^0x[0-9a-fA-F]{64}$/;
+
+/**
+ * Valida la forma del hash antes de tocar la red.
+ *
+ * Sin esta validación, un `null`, un `"0x"` o un string de longitud incorrecta
+ * llegan a ethers y fallan con un error genérico de JavaScript que ni siquiera
+ * nombra el hash ("Cannot read properties of null", "incorrect data length").
+ *
+ * @param {any} hash - Hash a anclar
+ * @param {string} pacienteId - Identificador del paciente (para el mensaje)
+ * @param {string} fecha - Fecha del registro (para el mensaje)
+ * @throws {Error} Si el hash no es un bytes32 hexadecimal de 32 bytes
+ */
+function validarFormaDelHash(hash, pacienteId, fecha) {
+  if (typeof hash !== "string" || !HASH_BYTES32.test(hash)) {
+    throw new Error(
+      `Hash inválido: el hash del registro ${ubicacionDelRegistro(pacienteId, fecha)} ` +
+        "no es un bytes32 válido; se esperaba '0x' seguido de 64 dígitos hexadecimales."
+    );
+  }
+}
+
 /**
  * Inicializa y devuelve la instancia conectada del Smart Contract en Sepolia.
  * 
@@ -137,10 +163,19 @@ async function guardarHashEnBlockchain(pacienteId, fecha, hash, opciones = {}) {
     validarFechaRegistro(fecha);
   } catch (error) {
     if (fecha === "") {
-      throw new Error(mensajeParaCausaDeAnclaje("FechaVacia", pacienteId, fecha));
+      throw new Error(mensajeParaCausaDeAnclaje("FechaVacia", pacienteId, fecha), {
+        cause: error,
+      });
     }
-    throw new Error(`No se puede anclar el registro: ${error.message}`);
+    throw new Error(`No se puede anclar el registro: ${error.message}`, {
+      cause: error,
+    });
   }
+
+  // La forma del hash también se valida antes de resolver la configuración y de
+  // tocar la red: un valor ausente o mal formado nunca debe llegar a ethers ni
+  // gastar gas. El hash cero no se valida acá: lo rechaza el contrato.
+  validarFormaDelHash(hash, pacienteId, fecha);
 
   try {
     console.log(`[BlockchainService] Iniciando anclaje para Paciente: ${pacienteId} | Fecha: ${fecha}`);
@@ -248,23 +283,76 @@ function diagnosticar(existe, coincide) {
   return { estado: ESTADO_ALTERADO, diagnostico: DIAGNOSTICO_ALTERADO };
 }
 
-// Custom errors del contrato RegistroMedicacion que pueden aparecer al anclar o
-// consultar un registro. Los selectores se derivan de la firma para no depender
-// de valores hexadecimales escritos a mano.
-const FIRMAS_DE_ERROR_DEL_CONTRATO = {
-  IdentificadorVacio: "IdentificadorVacio()",
-  FechaVacia: "FechaVacia()",
-  HashInvalido: "HashInvalido()",
-  RegistroYaExistente: "RegistroYaExistente(string,string)",
-  RegistroNoEncontrado: "RegistroNoEncontrado(string,string)",
-};
+/**
+ * Compone la referencia al registro en los mensajes de anclaje. Es el único
+ * lugar donde se arma "para el paciente 'X' en la fecha 'Y'"; las causas que
+ * sólo nombran una de las dos coordenadas omiten la otra.
+ *
+ * @param {string} [pacienteId] - Identificador del paciente
+ * @param {string} [fecha] - Fecha del registro
+ * @returns {string} Referencia al registro para el mensaje
+ */
+function ubicacionDelRegistro(pacienteId, fecha) {
+  const coordenadas = [];
+  if (pacienteId !== undefined) {
+    coordenadas.push(`el paciente '${pacienteId}'`);
+  }
+  if (fecha !== undefined) {
+    coordenadas.push(`la fecha '${fecha}'`);
+  }
+  return `para ${coordenadas.join(" en ")}`;
+}
 
-const ERRORES_DEL_CONTRATO = Object.entries(FIRMAS_DE_ERROR_DEL_CONTRATO).map(
-  ([nombre, firma]) => ({
-    nombre,
-    selector: ethers.id(firma).slice(0, 10).toLowerCase(),
-  })
-);
+// Custom errors del contrato RegistroMedicacion. Una sola tabla gobierna tanto la
+// clasificación (el selector se deriva de la firma, nunca se escribe a mano) como
+// el mensaje con el que se reporta cada causa al anclar. Agregar un custom error
+// es agregar una entrada, no editar dos registros en paralelo.
+//
+// RegistroNoEncontrado no lleva mensaje de anclaje: el contrato sólo lo revierte
+// en `consultarHash`, nunca en `registrarHash`. Se conserva en la tabla para que
+// `esRegistroNoEncontrado` lo reconozca en el camino de lectura (auditoría).
+const ERRORES_DEL_CONTRATO = [
+  {
+    nombre: "IdentificadorVacio",
+    firma: "IdentificadorVacio()",
+    mensajeDeAnclaje: (pacienteId, fecha) =>
+      `Identificador de paciente inválido: el identificador del paciente está vacío; no se puede anclar el registro ${ubicacionDelRegistro(
+        undefined,
+        fecha
+      )}.`,
+  },
+  {
+    nombre: "FechaVacia",
+    firma: "FechaVacia()",
+    mensajeDeAnclaje: (pacienteId) =>
+      `Fecha de registro inválida: la fecha de registro está vacía; no se puede anclar el registro ${ubicacionDelRegistro(
+        pacienteId
+      )}.`,
+  },
+  {
+    nombre: "HashInvalido",
+    firma: "HashInvalido()",
+    mensajeDeAnclaje: (pacienteId, fecha) =>
+      `Hash inválido: el hash del registro ${ubicacionDelRegistro(
+        pacienteId,
+        fecha
+      )} es nulo; no se puede anclar un hash nulo.`,
+  },
+  {
+    nombre: "RegistroYaExistente",
+    firma: "RegistroYaExistente(string,string)",
+    mensajeDeAnclaje: (pacienteId, fecha) =>
+      `Conflicto de inmutabilidad: El registro ${ubicacionDelRegistro(
+        pacienteId,
+        fecha
+      )} ya ha sido anclado previamente.`,
+  },
+  {
+    nombre: "RegistroNoEncontrado",
+    firma: "RegistroNoEncontrado(string,string)",
+    mensajeDeAnclaje: null,
+  },
+];
 
 /**
  * Recolecta los textos donde ethers o el proveedor RPC pueden exponer un error.
@@ -313,11 +401,14 @@ function recolectarPistasDeError(error, profundidad = 0) {
  * "execution reverted (unknown custom error)" con sólo el selector en `data`.
  * Por eso se busca primero el selector y, si no aparece, el nombre.
  *
+ * Se usa tanto al anclar como al consultar (auditoría), por eso el nombre no
+ * menciona una sola de las dos operaciones.
+ *
  * @param {any} error - Error capturado al llamar al contrato
  * @returns {string|null} Nombre del custom error, o `null` si el error no
  *                        proviene del contrato (red, credenciales, etc.)
  */
-function clasificarRevertDeAnclaje(error) {
+function clasificarRevertDelContrato(error) {
   const pistas = recolectarPistasDeError(error).map((pista) => pista.toLowerCase());
   if (pistas.length === 0) {
     return null;
@@ -325,9 +416,10 @@ function clasificarRevertDeAnclaje(error) {
 
   // 1. Por selector: es la pista más precisa y la única disponible cuando
   //    ethers no logra decodificar el custom error.
-  const porSelector = ERRORES_DEL_CONTRATO.find(({ selector }) =>
-    pistas.some((pista) => pista.includes(selector))
-  );
+  const porSelector = ERRORES_DEL_CONTRATO.find(({ firma }) => {
+    const selector = ethers.id(firma).slice(0, 10).toLowerCase();
+    return pistas.some((pista) => pista.includes(selector));
+  });
   if (porSelector) {
     return porSelector.nombre;
   }
@@ -346,7 +438,7 @@ function clasificarRevertDeAnclaje(error) {
  * @returns {boolean} `true` solo si el error es RegistroNoEncontrado
  */
 function esRegistroNoEncontrado(error) {
-  return clasificarRevertDeAnclaje(error) === "RegistroNoEncontrado";
+  return clasificarRevertDelContrato(error) === "RegistroNoEncontrado";
 }
 
 /**
@@ -355,23 +447,15 @@ function esRegistroNoEncontrado(error) {
  * @param {string|null} causa - Nombre del custom error del contrato
  * @param {string} pacienteId - Identificador del paciente
  * @param {string} fecha - Fecha del registro
- * @returns {string|null} Mensaje específico, o `null` si la causa no es conocida
+ * @returns {string|null} Mensaje específico, o `null` si la causa no tiene
+ *                        mensaje de anclaje (es desconocida o es un error que
+ *                        el contrato sólo revierte en la lectura)
  */
 function mensajeParaCausaDeAnclaje(causa, pacienteId, fecha) {
-  switch (causa) {
-    case "RegistroYaExistente":
-      return `Conflicto de inmutabilidad: El registro para el paciente '${pacienteId}' en la fecha '${fecha}' ya ha sido anclado previamente.`;
-    case "IdentificadorVacio":
-      return `Identificador de paciente inválido: el identificador del paciente está vacío; no se puede anclar el registro para la fecha '${fecha}'.`;
-    case "FechaVacia":
-      return `Fecha de registro inválida: la fecha de registro está vacía; no se puede anclar el registro para el paciente '${pacienteId}'.`;
-    case "HashInvalido":
-      return `Hash inválido: el hash del registro para el paciente '${pacienteId}' en la fecha '${fecha}' es nulo; no se puede anclar un hash nulo.`;
-    case "RegistroNoEncontrado":
-      return `Error inesperado al anclar el registro para el paciente '${pacienteId}' en la fecha '${fecha}': el contrato revirtió con RegistroNoEncontrado, que no corresponde a la operación de anclaje.`;
-    default:
-      return null;
-  }
+  const error = ERRORES_DEL_CONTRATO.find(({ nombre }) => nombre === causa);
+  return error && error.mensajeDeAnclaje
+    ? error.mensajeDeAnclaje(pacienteId, fecha)
+    : null;
 }
 
 /**
@@ -384,20 +468,20 @@ function mensajeParaCausaDeAnclaje(causa, pacienteId, fecha) {
  * @param {any} error - Error capturado al anclar
  * @param {string} pacienteId - Identificador del paciente
  * @param {string} fecha - Fecha del registro
- * @returns {Error} Error traducido, con el original como `cause` si no era un revert
+ * @returns {Error} Error traducido, con el original como `cause`
  */
 function traducirErrorDeAnclaje(error, pacienteId, fecha) {
-  const causa = clasificarRevertDeAnclaje(error);
+  const causa = clasificarRevertDelContrato(error);
   const mensaje = mensajeParaCausaDeAnclaje(causa, pacienteId, fecha);
   if (mensaje !== null) {
-    return new Error(mensaje);
+    return new Error(mensaje, { cause: error });
   }
 
   const detalle =
     error && typeof error.message === "string" ? error.message : String(error);
 
   return new Error(
-    `No se pudo anclar el registro para el paciente '${pacienteId}' en la fecha '${fecha}': ${detalle}`,
+    `No se pudo anclar el registro ${ubicacionDelRegistro(pacienteId, fecha)}: ${detalle}`,
     { cause: error }
   );
 }
@@ -487,9 +571,10 @@ module.exports = {
   guardarHashEnBlockchain,
   consultarHashEnBlockchain,
   diagnosticar,
-  clasificarRevertDeAnclaje,
+  clasificarRevertDelContrato,
   esRegistroNoEncontrado,
   auditarIntegridadRegistro,
+  ERRORES_DEL_CONTRATO,
   ESTADO_INTEGRO,
   ESTADO_ALTERADO,
   ESTADO_NO_ANCLADO,
