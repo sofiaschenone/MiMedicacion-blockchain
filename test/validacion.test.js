@@ -7,6 +7,7 @@ const {
 const {
   generarHashDiario,
   guardarHashEnBlockchain,
+  CODIGO_FECHA_INVALIDA,
 } = require("../src/blockchainService");
 
 // Única tabla de fechas inválidas: cubre tanto los formatos que no son
@@ -179,6 +180,7 @@ describe("Validación de la fecha de registro", function () {
       expect(error).to.be.instanceOf(Error);
       expect(error.message).to.match(/fecha de registro inválida/i);
       expect(error.message).to.not.match(/configuración inválida/i);
+      expect(error.codigo).to.equal(CODIGO_FECHA_INVALIDA);
     });
   });
 });

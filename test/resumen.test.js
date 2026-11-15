@@ -2,50 +2,44 @@ const { expect } = require("chai");
 
 const {
   resumirLote,
+  RESULTADO_ANCLADO,
+  RESULTADO_YA_ANCLADO,
+  RESULTADO_FALLIDO,
   ESTADO_SIN_REGISTROS,
   ESTADO_EXITO,
   ESTADO_PARCIAL,
-  ESTADO_NINGUNO,
+  ESTADO_TODOS_FALLIDOS,
+  ESTADO_SIN_CAMBIOS,
 } = require("../src/resumen");
 
 /**
  * El cierre del proceso diario tiene que describir lo que pasó, no lo que se
- * quiso hacer. Estos tests fijan esa diferencia: un lote con fallidos no puede
- * cerrar con una fórmula optimista, y un lote vacío no puede presentarse como
- * si algo se hubiera procesado.
+ * quiso hacer. Estos tests verifican el estado y los cuatro conteos, no la
+ * redacción literal: un mensaje engañoso distinto también tiene que ser
+ * detectable, y una frase honesta no debe quedar prohibida por su vocabulario.
  */
 
-function exito(paciente) {
-  return { paciente, exito: true, motivo: null };
+function anclado() {
+  return { resultado: RESULTADO_ANCLADO };
 }
 
-function fallo(paciente, motivo) {
-  return { paciente, exito: false, motivo };
+function yaAnclado() {
+  return { resultado: RESULTADO_YA_ANCLADO };
 }
 
-// Fórmulas que sólo son ciertas cuando todos los registros se anclaron. Si
-// reaparecen en un cierre parcial o fallido, el operador vuelve a leer una
-// mentira y el test lo delata.
-const FORMULAS_OPTIMISTAS = [
-  /todos/i,
-  /éxito total/i,
-  /todo salió bien/i,
-  /lote completo/i,
-];
-
-function expectSinFormulaOptimista(encabezado) {
-  FORMULAS_OPTIMISTAS.forEach((formula) => {
-    expect(encabezado, `"${encabezado}" no debería afirmar ${formula}`).to.not.match(
-      formula
-    );
-  });
+function fallido() {
+  return { resultado: RESULTADO_FALLIDO };
 }
 
-// El encabezado informa las tres cifras con su etiqueta: no alcanza con que
+// El encabezado informa las cuatro cifras con su etiqueta: no alcanza con que
 // los números aparezcan sueltos en el texto.
-function expectCifras(encabezado, { procesados, exitosos, fallidos }) {
+function expectCifras(
+  encabezado,
+  { procesados, anclados, yaAnclados, fallidos }
+) {
   expect(encabezado).to.include(`procesados: ${procesados}`);
-  expect(encabezado).to.include(`exitosos: ${exitosos}`);
+  expect(encabezado).to.include(`anclados: ${anclados}`);
+  expect(encabezado).to.include(`yaAnclados: ${yaAnclados}`);
   expect(encabezado).to.include(`fallidos: ${fallidos}`);
 }
 
@@ -55,111 +49,156 @@ describe("Resumen fiel del lote diario", function () {
 
     expect(resumen.estado).to.equal(ESTADO_SIN_REGISTROS);
     expect(resumen.procesados).to.equal(0);
-    expect(resumen.exitosos).to.equal(0);
+    expect(resumen.anclados).to.equal(0);
+    expect(resumen.yaAnclados).to.equal(0);
     expect(resumen.fallidos).to.equal(0);
     expectCifras(resumen.encabezado, {
       procesados: 0,
-      exitosos: 0,
+      anclados: 0,
+      yaAnclados: 0,
       fallidos: 0,
     });
 
     expect(resumen.encabezado).to.match(/no había registros/i);
-    expect(resumen.encabezado).to.not.match(/se procesaron|fueron procesados|anclad/i);
-    expectSinFormulaOptimista(resumen.encabezado);
   });
 
-  it("con todos los registros exitosos informa EXITO", function () {
-    const resumen = resumirLote([exito("PAC_001"), exito("PAC_002")]);
+  it("con todos los registros anclados en esta corrida informa EXITO", function () {
+    const resumen = resumirLote([anclado(), anclado()]);
 
     expect(resumen.estado).to.equal(ESTADO_EXITO);
     expect(resumen.procesados).to.equal(2);
-    expect(resumen.exitosos).to.equal(2);
+    expect(resumen.anclados).to.equal(2);
+    expect(resumen.yaAnclados).to.equal(0);
     expect(resumen.fallidos).to.equal(0);
     expectCifras(resumen.encabezado, {
       procesados: 2,
-      exitosos: 2,
+      anclados: 2,
+      yaAnclados: 0,
       fallidos: 0,
     });
-
-    expect(resumen.encabezado).to.match(/éxito/i);
   });
 
-  it("con algunos fallidos informa PARCIAL y no afirma que todo salió bien", function () {
-    const resumen = resumirLote([
-      exito("PAC_001"),
-      fallo("PAC_002", "Conflicto de inmutabilidad: el registro ya ha sido anclado."),
-    ]);
+  it("con algunos anclados y algunos fallidos informa PARCIAL", function () {
+    const resumen = resumirLote([anclado(), fallido()]);
 
     expect(resumen.estado).to.equal(ESTADO_PARCIAL);
     expect(resumen.procesados).to.equal(2);
-    expect(resumen.exitosos).to.equal(1);
+    expect(resumen.anclados).to.equal(1);
+    expect(resumen.yaAnclados).to.equal(0);
     expect(resumen.fallidos).to.equal(1);
     expectCifras(resumen.encabezado, {
       procesados: 2,
-      exitosos: 1,
+      anclados: 1,
+      yaAnclados: 0,
       fallidos: 1,
     });
 
     expect(resumen.encabezado).to.match(/parcial/i);
-    expectSinFormulaOptimista(resumen.encabezado);
   });
 
-  it("con todos fallidos informa NINGUNO y no celebra el cierre", function () {
-    const resumen = resumirLote([
-      fallo("PAC_001", "Conflicto de inmutabilidad: el registro ya ha sido anclado."),
-      fallo("PAC_002", "Conflicto de inmutabilidad: el registro ya ha sido anclado."),
-    ]);
+  it("con todos fallidos informa TODOS_FALLIDOS y no celebra el cierre", function () {
+    const resumen = resumirLote([fallido(), fallido()]);
 
-    expect(resumen.estado).to.equal(ESTADO_NINGUNO);
+    expect(resumen.estado).to.equal(ESTADO_TODOS_FALLIDOS);
     expect(resumen.procesados).to.equal(2);
-    expect(resumen.exitosos).to.equal(0);
+    expect(resumen.anclados).to.equal(0);
+    expect(resumen.yaAnclados).to.equal(0);
     expect(resumen.fallidos).to.equal(2);
     expectCifras(resumen.encabezado, {
       procesados: 2,
-      exitosos: 0,
+      anclados: 0,
+      yaAnclados: 0,
       fallidos: 2,
     });
 
-    expect(resumen.encabezado).to.match(/no se ancló ningún registro/i);
     expect(resumen.encabezado).to.not.match(/🎉/);
-    expect(resumen.encabezado).to.not.match(/éxito/i);
-    expectSinFormulaOptimista(resumen.encabezado);
   });
 
-  it("los cuatro estados producen encabezados cualitativamente distintos", function () {
-    const encabezados = [
-      resumirLote([]).encabezado,
-      resumirLote([exito("PAC_001")]).encabezado,
-      resumirLote([exito("PAC_001"), fallo("PAC_002", "sin red")]).encabezado,
-      resumirLote([fallo("PAC_001", "sin red")]).encabezado,
+  it("con todos ya anclados informa SIN_CAMBIOS sin presentarlo como fallo ni éxito", function () {
+    const resumen = resumirLote([yaAnclado(), yaAnclado()]);
+
+    expect(resumen.estado).to.equal(ESTADO_SIN_CAMBIOS);
+    expect(resumen.procesados).to.equal(2);
+    expect(resumen.anclados).to.equal(0);
+    expect(resumen.yaAnclados).to.equal(2);
+    expect(resumen.fallidos).to.equal(0);
+    expectCifras(resumen.encabezado, {
+      procesados: 2,
+      anclados: 0,
+      yaAnclados: 2,
+      fallidos: 0,
+    });
+
+    // No es un fallo: el registro sí está en la cadena desde antes.
+    expect(resumen.encabezado).to.not.match(/❌/);
+    // No es un éxito de esta corrida: no se ancló nada nuevo.
+    expect(resumen.encabezado).to.not.match(/🎉/);
+  });
+
+  it("los cinco estados producen encabezados distintos con sus cifras", function () {
+    const resumenes = [
+      resumirLote([]),
+      resumirLote([anclado()]),
+      resumirLote([anclado(), fallido()]),
+      resumirLote([fallido()]),
+      resumirLote([yaAnclado()]),
     ];
 
-    expect(new Set(encabezados).size).to.equal(4);
+    const encabezados = resumenes.map((resumen) => resumen.encabezado);
+    expect(new Set(encabezados).size).to.equal(5);
+
+    // Los cierres que no son un éxito no pueden reutilizar el texto de EXITO.
+    const encabezadoExito = resumenes[1].encabezado;
+    [resumenes[2], resumenes[3], resumenes[4]].forEach((resumen) => {
+      expect(resumen.encabezado).to.not.equal(encabezadoExito);
+      expectCifras(resumen.encabezado, resumen);
+    });
   });
 
   it("cada paciente procesado cuenta exactamente una vez", function () {
     const resumen = resumirLote([
-      exito("PAC_001"),
-      fallo("PAC_002", "sin red"),
-      exito("PAC_003"),
-      fallo("PAC_004", "sin red"),
-      fallo("PAC_005", "sin red"),
+      anclado(),
+      fallido(),
+      anclado(),
+      fallido(),
+      yaAnclado(),
     ]);
 
     expect(resumen.procesados).to.equal(5);
-    expect(resumen.exitosos).to.equal(2);
-    expect(resumen.fallidos).to.equal(3);
-    expect(resumen.exitosos + resumen.fallidos).to.equal(resumen.procesados);
+    expect(resumen.anclados).to.equal(2);
+    expect(resumen.yaAnclados).to.equal(1);
+    expect(resumen.fallidos).to.equal(2);
+    expect(resumen.anclados + resumen.yaAnclados + resumen.fallidos).to.equal(
+      resumen.procesados
+    );
     expect(resumen.estado).to.equal(ESTADO_PARCIAL);
   });
 
+  it("no cuenta un anclaje previo como fallo ni como anclaje nuevo", function () {
+    const resumen = resumirLote([anclado(), yaAnclado()]);
+
+    // Hubo anclaje nuevo y ningún fallo: el lote es un éxito, aunque no todo
+    // se haya anclado en esta corrida.
+    expect(resumen.estado).to.equal(ESTADO_EXITO);
+    expect(resumen.anclados).to.equal(1);
+    expect(resumen.yaAnclados).to.equal(1);
+    expect(resumen.fallidos).to.equal(0);
+  });
+
   it("clasifica el estado por el resultado, no por la cantidad", function () {
-    expect(resumirLote([exito("PAC_001")]).estado).to.equal(ESTADO_EXITO);
-    expect(resumirLote([fallo("PAC_001", "sin red")]).estado).to.equal(
-      ESTADO_NINGUNO
+    expect(resumirLote([anclado()]).estado).to.equal(ESTADO_EXITO);
+    expect(resumirLote([fallido()]).estado).to.equal(ESTADO_TODOS_FALLIDOS);
+    expect(resumirLote([yaAnclado()]).estado).to.equal(ESTADO_SIN_CAMBIOS);
+    expect(resumirLote([anclado(), fallido()]).estado).to.equal(
+      ESTADO_PARCIAL
     );
-    expect(
-      resumirLote([exito("PAC_001"), fallo("PAC_002", "sin red")]).estado
-    ).to.equal(ESTADO_PARCIAL);
+  });
+
+  it("rechaza una entrada que no sea un arreglo", function () {
+    [null, undefined, {}, "resultados", 42].forEach((entrada) => {
+      expect(() => resumirLote(entrada), String(entrada)).to.throw(
+        /se esperaba un arreglo/i
+      );
+    });
   });
 });

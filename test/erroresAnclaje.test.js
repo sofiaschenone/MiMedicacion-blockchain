@@ -6,6 +6,12 @@ const {
   esRegistroNoEncontrado,
   guardarHashEnBlockchain,
   ERRORES_DEL_CONTRATO,
+  CODIGO_YA_ANCLADO,
+  CODIGO_IDENTIFICADOR_VACIO,
+  CODIGO_FECHA_VACIA,
+  CODIGO_HASH_INVALIDO,
+  CODIGO_ERROR_DE_CONFIGURACION,
+  CODIGO_ERROR_DE_ANCLAJE,
 } = require("../src/blockchainService");
 
 /**
@@ -147,6 +153,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     expect(error.message).to.match(/ya ha sido anclado previamente/i);
     expect(error.message).to.include("PAC_001");
     expect(error.message).to.include(FECHA);
+    expect(error.codigo).to.equal(CODIGO_YA_ANCLADO);
   });
 
   it("nombra el identificador vacío en lugar de la inmutabilidad", async function () {
@@ -158,6 +165,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     expect(error.message).to.match(/identificador de paciente inválido/i);
     expect(error.message).to.match(/vacío/i);
     expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+    expect(error.codigo).to.equal(CODIGO_IDENTIFICADOR_VACIO);
   });
 
   it("nombra la fecha vacía en lugar de la inmutabilidad", async function () {
@@ -169,6 +177,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     expect(error.message).to.match(/fecha de registro inválida/i);
     expect(error.message).to.match(/vacía/i);
     expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+    expect(error.codigo).to.equal(CODIGO_FECHA_VACIA);
   });
 
   it("nombra el hash nulo en lugar de la inmutabilidad", async function () {
@@ -180,6 +189,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     expect(error.message).to.match(/hash inválido/i);
     expect(error.message).to.match(/nulo/i);
     expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+    expect(error.codigo).to.equal(CODIGO_HASH_INVALIDO);
   });
 
   it("no traduce RegistroNoEncontrado como si fuera un error de anclaje", async function () {
@@ -190,6 +200,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
 
     expect(error.message).to.match(/no se pudo anclar el registro/i);
     expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+    expect(error.codigo).to.equal(CODIGO_ERROR_DE_ANCLAJE);
   });
 
   it("reconoce el revert sólo por el data, como lo entrega Sepolia", async function () {
@@ -226,6 +237,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
     expect(error.message).to.include(original.message);
     expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
     expect(error.cause).to.equal(original);
+    expect(error.codigo).to.equal(CODIGO_ERROR_DE_ANCLAJE);
   });
 
   it("una fecha vacía se rechaza antes de tocar la red y nombra la fecha vacía", async function () {
@@ -279,6 +291,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
         expect(error.message).to.match(/hash inválido/i);
         expect(error.message).to.include(FECHA);
         expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+        expect(error.codigo).to.equal(CODIGO_HASH_INVALIDO);
       });
     });
   });
@@ -300,6 +313,7 @@ describe("guardarHashEnBlockchain: cada revert se reporta por su causa", functio
       expect(error.message).to.match(/configuración inválida/i);
       expect(error.message).to.match(/no se pudo anclar el registro/i);
       expect(error.message).to.not.match(CONFLICTO_DE_INMUTABILIDAD);
+      expect(error.codigo).to.equal(CODIGO_ERROR_DE_CONFIGURACION);
     } finally {
       if (claveOriginal === undefined) {
         delete process.env.PRIVATE_KEY;
