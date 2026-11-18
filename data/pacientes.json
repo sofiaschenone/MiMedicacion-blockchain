@@ -34,6 +34,15 @@
         "dosis": "1 comprimido",
         "estado": "TOMADO",
         "observaciones": "Toma nocturna antes del descanso."
+      },
+      {
+        "medicamento": "Buscapina 500 mg",
+        "dosis": "1 comprimido blando",
+        "horaProgramada": "12:00",
+        "observaciones": "Lo administra la enfermera Claudia, por dolores estomacales",
+        "estado": "TOMADO",
+        "id": "toma_1795007443945",
+        "horaEfectiva": "10:10"
       }
     ]
   },

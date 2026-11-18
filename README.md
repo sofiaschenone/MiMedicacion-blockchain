@@ -193,7 +193,7 @@ npm run demo:auditoria
 
 ---
 
-## 🛡️ "Machete" para la Defensa del Proyecto (Preguntas Frecuentes de la Cátedra)
+## ??? Preguntas Frecuentes
 
 | Pregunta de la Cátedra | Respuesta Técnica Arquitectónica |
 | :--- | :--- |

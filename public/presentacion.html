@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presentación PPT — MiMedicación | UPE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-slide: #ffffff;
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --accent: #38bdf8;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --success: #16a34a;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #090d16;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* Barra Superior de Control */
+    .controls-header {
+      width: 100%;
+      max-width: 1080px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .slide-counter {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--accent);
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-nav {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-nav:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Contenedor de la Diapositiva (Aspect Ratio 16:9) */
+    .slide-viewport {
+      width: 100%;
+      max-width: 1080px;
+      height: 610px;
+      background: var(--bg-slide);
+      color: var(--text-main);
+      border-radius: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide {
+      width: 100%;
+      height: 100%;
+      padding: 44px 52px;
+      display: none;
+      flex-direction: column;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.99); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Encabezado y Pie de Diapositiva */
+    .slide-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .slide-tag {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      background: #f0f9ff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid #bae6fd;
+    }
+
+    .slide-univ {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .slide-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.1rem;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .slide-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 22px;
+    }
+
+    /* Layouts Internos */
+    .slide-content-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 30px;
+      align-items: center;
+      flex: 1;
+    }
+
+    .capture-container {
+      background: #f8fafc;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .capture-container img {
+      width: 100%;
+      height: auto;
+      max-height: 330px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .bullet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .bullet-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .bullet-icon {
+      width: 26px;
+      height: 26px;
+      background: #e0f2fe;
+      color: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .bullet-text h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+
+    .bullet-text p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Diapositiva de Portada */
+    .hero-slide {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(circle at top right, #f0f9ff, #ffffff);
+    }
+
+    .hero-icon {
+      width: 76px;
+      height: 76px;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: white;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.4);
+    }
+
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 3.2rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #0f172a;
+      margin-bottom: 10px;
+    }
+
+    .hero-desc {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .hero-badges {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .badge-hero {
+      background: white;
+      border: 1px solid var(--border);
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #334155;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    /* Miniaturas / Grid */
+    .thumbnails-nav {
+      width: 100%;
+      max-width: 1080px;
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .thumb {
+      flex: 1;
+      min-width: 140px;
+      background: #1e293b;
+      border: 2px solid transparent;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #94a3b8;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .thumb.active {
+      border-color: var(--accent);
+      color: white;
+      background: #0f172a;
+    }
+
+    .thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra de Controles Superior -->
+  <div class="controls-header">
+    <div class="slide-counter">
+      Diapositiva <span id="current-index">1</span> de <span id="total-slides">6</span>
+    </div>
+    <div class="nav-buttons">
+      <button class="btn-nav" id="btn-prev" onclick="cambiarDiapositiva(-1)">◀ Anterior</button>
+      <button class="btn-nav" id="btn-next" onclick="cambiarDiapositiva(1)">Siguiente ▶</button>
+      <button class="btn-nav" onclick="pantallaCompleta()" style="background: #334155;">⛶ Pantalla Completa</button>
+    </div>
+  </div>
+
+  <!-- Diapositiva Activa (Canvas 16:9) -->
+  <div class="slide-viewport" id="slide-viewport">
+
+    <!-- SLIDE 1: PORTADA -->
+    <div class="slide hero-slide active">
+      <div class="hero-icon">💊</div>
+      <h1 class="hero-title">MiMedicación</h1>
+      <p class="hero-desc">
+        Sistema Hospitalario de Gestión y Trazabilidad Farmacológica para Adultos Mayores con Notariado Criptográfico en Blockchain.
+      </p>
+      <div class="hero-badges">
+        <div class="badge-hero">🏛️ Universidad Provincial de Ezeiza (UPE)</div>
+        <div class="badge-hero">⛓️ Ethereum Sepolia Testnet</div>
+        <div class="badge-hero">🛡️ Data Anchoring (Ley 25.326)</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: ARQUITECTURA HÍBRIDA & CABECERA -->
+    <div class="slide">
+      <div class="slide-top">
+        <span class="slide-tag">Arquitectura & Estado</span>
+        <span class="slide-univ">UPE — Blockchain & Sistemas Distribuidos</span>
+      </div>
+      <h2 class="slide-title">Infraestructura del Sistema & Accesibilidad</h2>
+      <p class="slide-subtitle">Sincronización en tiempo real entre la capa pública de Ethereum y la base de datos persistente.</p>
+
+      <div class="slide-content-grid">
+        <div class="capture-container">
+          <img src="presentacion/01_header_status.png" alt="Header y Barra de Estado">
+        </div>
+        <div class="bullet-list">
+          <div class="bullet-item">
+            <div class="bullet-icon">1</div>
+            <div class="bullet-text">
+              <h4>Monitoreo Activo de Nodos</h4>
+              <p>Muestra el estado en vivo de la conexión con la red <strong>Ethereum Sepolia</strong> y el motor de base de datos persistente.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">2</div>
+            <div class="bullet-text">
+              <h4>Accesibilidad Extrema de Diseño</h4>
+              <p>Controles de escalado de fuentes (A+ / A-) y modo de <strong>Alto Contraste</strong> diseñados especialmente para la visión de adultos mayores.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">3</div>
+            <div class="bullet-text">
+              <h4>Fecha y Sello Temporal Oficial</h4>
+              <p>Registra la fecha y huso horario exacto para la auditoría de cada jornada clínica.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: GESTIÓN DE PACIENTES -->
+    <div class="slide">
+      <div class="slide-top">
+        <span class="slide-tag">Capa Operativa Off-Chain</span>
+        <span class="slide-univ">UPE — Proyecto MiMedicación</span>
+      </div>
+      <h2 class="slide-title">Panel de Pacientes y Cuidados Diarios</h2>
+      <p class="slide-subtitle">Privacidad médica absoluta: los diagnósticos e historias clínicas residen de forma confidencial fuera de la red pública.</p>
+
+      <div class="slide-content-grid">
+        <div class="capture-container">
+          <img src="presentacion/02_pacientes_tomas.png" alt="Pacientes y Tomas">
+        </div>
+        <div class="bullet-list">
+          <div class="bullet-item">
+            <div class="bullet-icon">✓</div>
+            <div class="bullet-text">
+              <h4>Ficha Médica y Responsables</h4>
+              <p>Vinculación de Historia Clínica (HC-88219-UPE), patologías crónicas y cuidadora matriculada (Lic. Mariana López).</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">✓</div>
+            <div class="bullet-text">
+              <h4>Cronograma Horario de Fármacos</h4>
+              <p>Programación de Enalapril, Metformina y Atorvastatina con dosis y verificación de ingesta efectiva.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">✓</div>
+            <div class="bullet-text">
+              <h4>Cumplimiento Ley 25.326</h4>
+              <p>Garantía de confidencialidad: ningún dato personal toca la blockchain sin anonimización.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: AGREGADO DE NUEVAS TOMAS EN TIEMPO REAL -->
+    <div class="slide">
+      <div class="slide-top">
+        <span class="slide-tag">Persistencia & Operatividad</span>
+        <span class="slide-univ">UPE — Base de Datos Dinámica</span>
+      </div>
+      <h2 class="slide-title">Ingreso Dinámico de Prescripciones</h2>
+      <p class="slide-subtitle">Demostración en vivo de la reactividad del sistema ante prescripciones de emergencia.</p>
+
+      <div class="slide-content-grid">
+        <div class="capture-container">
+          <img src="presentacion/04_nueva_toma_buscapina.png" alt="Nueva toma Buscapina">
+        </div>
+        <div class="bullet-list">
+          <div class="bullet-item">
+            <div class="bullet-icon">+</div>
+            <div class="bullet-text">
+              <h4>Persistencia Inmediata</h4>
+              <p>Se registró exitosamente: <em>"Buscapina 500 mg — 1 comprimido blando por dolores estomacales"</em> administrado a las 10:10 hs.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">+</div>
+            <div class="bullet-text">
+              <h4>Trazabilidad del Profesional</h4>
+              <p>Identificación explícita de quién efectuó la toma extraordinaria (Enfermera Claudia) para deslinde de responsabilidades.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">+</div>
+            <div class="bullet-text">
+              <h4>Actualización Automática del Hash</h4>
+              <p>Al agregarse este nuevo fármaco, el JSON del día cambia y el sistema regenera la huella criptográfica de inmediato.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: EL NOTARIO BLOCKCHAIN -->
+    <div class="slide">
+      <div class="slide-top">
+        <span class="slide-tag">Capa de Inmutabilidad On-Chain</span>
+        <span class="slide-univ">UPE — Smart Contract Solidity</span>
+      </div>
+      <h2 class="slide-title">Certificación Criptográfica en Ethereum</h2>
+      <p class="slide-subtitle">Smart Contract autónomo desplegado en Sepolia como notario digital inalterable.</p>
+
+      <div class="slide-content-grid">
+        <div class="capture-container">
+          <img src="presentacion/03_modulo_certificacion.png" alt="Módulo Notarial">
+        </div>
+        <div class="bullet-list">
+          <div class="bullet-item">
+            <div class="bullet-icon">⛓️</div>
+            <div class="bullet-text">
+              <h4>Contrato Inteligente Verificado</h4>
+              <p>Desplegado en Sepolia en <code>0x22dd9c3f...e990B7a2</code>, con acceso 24/7 en Sepolia Etherscan.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">🔒</div>
+            <div class="bullet-text">
+              <h4>Eficiencia de Gas (bytes32)</h4>
+              <p>El Hash SHA-256 (<code>0x822c2191...</code>) ocupa exactamente 32 bytes en la EVM, ahorrando más de 40% de gas frente a strings.</p>
+            </div>
+          </div>
+          <div class="bullet-item">
+            <div class="bullet-icon">🛡️</div>
+            <div class="bullet-text">
+              <h4>Control de Acceso onlyOwner</h4>
+              <p>Solo la wallet autorizada del backend hospitalario tiene permiso para estampar la firma del cierre diario.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: AUDITORÍA Y DETECCIÓN DE FRAUDE -->
+    <div class="slide">
+      <div class="slide-top">
+        <span class="slide-tag">Auditoría & Conclusión</span>
+        <span class="slide-univ">UPE — Cátedra de Blockchain</span>
+      </div>
+      <h2 class="slide-title">Detección de Manipulación & Conclusiones</h2>
+      <p class="slide-subtitle">Cómo el Efecto Avalancha de SHA-256 protege al paciente y expone cualquier negligencia médica.</p>
+
+      <div class="slide-content-grid">
+        <div class="bullet-list" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; border: 1px solid var(--border);">
+            <h4 style="color: var(--primary); font-size: 1.15rem; margin-bottom: 8px;">🛡️ Simulación de Discrepancia Médica</h4>
+            <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.5;">
+              La casilla interactiva <em>"Simular discrepancia en dosis médica"</em> permite probar qué ocurre si un cuidador altera retroactivamente una dosis en la base de datos (ej: de 10 mg a 20 mg).
+            </p>
+            <p style="font-size: 0.95rem; color: #b91c1c; font-weight: 700; margin-top: 10px;">
+              Resultado: El hash cambia por completo y la función <code>verificarHash()</code> rechaza el registro, exponiendo el fraude ante la justicia o la familia.
+            </p>
+          </div>
+
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 14px; border: 1px solid #bbf7d0;">
+            <h4 style="color: #15803d; font-size: 1.15rem; margin-bottom: 8px;">🎯 Impacto del Proyecto en la UPE</h4>
+            <p style="font-size: 0.95rem; color: #166534; line-height: 1.5;">
+              ✓ <strong>Privacidad por Diseño:</strong> Cero datos médicos expuestos en Ethereum.<br>
+              ✓ <strong>Costo Cero Real:</strong> Sepolia Testnet + MongoDB Atlas Cloud M0 + Vercel.<br>
+              ✓ <strong>Inmutabilidad Garantizada:</strong> Prueba temporal de existencia irrefutable para la salud pública.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Miniaturas de Navegación Rápida -->
+  <div class="thumbnails-nav">
+    <div class="thumb active" onclick="irADiapositiva(0)">1. Portada</div>
+    <div class="thumb" onclick="irADiapositiva(1)">2. Estado & Red</div>
+    <div class="thumb" onclick="irADiapositiva(2)">3. Pacientes</div>
+    <div class="thumb" onclick="irADiapositiva(3)">4. Nuevas Tomas</div>
+    <div class="thumb" onclick="irADiapositiva(4)">5. Notario Sepolia</div>
+    <div class="thumb" onclick="irADiapositiva(5)">6. Auditoría</div>
+  </div>
+
+  <script>
+    let slideActual = 0;
+    const slides = document.querySelectorAll(".slide");
+    const thumbs = document.querySelectorAll(".thumb");
+    const total = slides.length;
+
+    document.getElementById("total-slides").innerText = total;
+
+    function actualizarVista() {
+      slides.forEach((s, idx) => s.classList.toggle("active", idx === slideActual));
+      thumbs.forEach((t, idx) => t.classList.toggle("active", idx === slideActual));
+
+      document.getElementById("current-index").innerText = slideActual + 1;
+      document.getElementById("btn-prev").disabled = slideActual === 0;
+      document.getElementById("btn-next").disabled = slideActual === total - 1;
+    }
+
+    function cambiarDiapositiva(delta) {
+      slideActual = Math.max(0, Math.min(total - 1, slideActual + delta));
+      actualizarVista();
+    }
+
+    function irADiapositiva(idx) {
+      slideActual = idx;
+      actualizarVista();
+    }
+
+    // Navegación con flechas del teclado
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+        cambiarDiapositiva(1);
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        cambiarDiapositiva(-1);
+      }
+    });
+
+    function pantallaCompleta() {
+      const el = document.getElementById("slide-viewport");
+      if (!document.fullscreenElement) {
+        el.requestFullscreen().catch(err => alert("Error: " + err.message));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+  </script>
+</body>
+</html>

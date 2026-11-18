@@ -50,8 +50,10 @@ function sendJSON(res, statusCode, data) {
  * Manejador principal de peticiones (Compatible con Servidor Node y Vercel Serverless)
  */
 async function requestHandler(req, res) {
-  const parsedUrl = url.parse(req.url, true);
-  const pathname = parsedUrl.pathname;
+  // Uso del estándar moderno WHATWG URL API (elimina la advertencia DEP0169)
+  const baseURL = `http://${req.headers.host || "localhost"}`;
+  const reqUrl = new URL(req.url, baseURL);
+  const pathname = reqUrl.pathname;
 
   // Manejo de Preflight CORS
   if (req.method === "OPTIONS") {
@@ -143,7 +145,7 @@ async function requestHandler(req, res) {
 
   // 5. Generar vista previa de hash
   if (req.method === "GET" && pathname === "/api/hash") {
-    const pacienteId = parsedUrl.query.paciente || "PAC_001";
+    const pacienteId = reqUrl.searchParams.get("paciente") || "PAC_001";
     const paciente = await db.obtenerPacientePorId(pacienteId);
     if (!paciente) return sendJSON(res, 404, { error: "Paciente no encontrado" });
 
