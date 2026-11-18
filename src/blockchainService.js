@@ -182,10 +182,12 @@ function obtenerContratoConectado() {
     );
   }
 
-  // Definición del proveedor RPC para Sepolia
+  // Definición del proveedor RPC para Sepolia.
+  // El respaldo público anterior (https://rpc.sepolia.org) dejó de responder
+  // (HTTP 404), así que se usa un nodo público mantenido de la misma red.
   const rpcUrl = customRpcUrl || (alchemyApiKey
     ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`
-    : "https://rpc.sepolia.org");
+    : "https://ethereum-sepolia-rpc.publicnode.com");
 
   // Ethers v6: JsonRpcProvider
   const provider = new ethers.JsonRpcProvider(rpcUrl);
