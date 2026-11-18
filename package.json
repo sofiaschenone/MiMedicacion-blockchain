@@ -1,15 +1,19 @@
 {
   "name": "mimedicacion-blockchain",
   "version": "1.0.0",
-  "description": "Capa Blockchain para el proyecto MiMedicación - Universidad Provincial de Ezeiza (UPE)",
-  "main": "src/blockchainService.js",
+  "description": "Capa Blockchain y Gestión para el proyecto MiMedicación - Universidad Provincial de Ezeiza (UPE)",
+  "main": "src/server.js",
   "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "cron": "node src/cron.js",
-    "cron:test": "node src/cron.js --now"
+    "cron:test": "node src/cron.js --now",
+    "demo:auditoria": "node src/demoAuditoria.js",
+    "db:seed": "node scripts/seedDatabase.js"
   },
   "keywords": [
     "blockchain",
@@ -27,6 +31,7 @@
     "@openzeppelin/contracts": "^5.0.2",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.2",
+    "mongoose": "^8.8.2",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {

@@ -25,6 +25,7 @@ jspm_packages/
 # Archivos autogenerados al compilar los smart contracts
 artifacts/
 cache/
+.cache/
 typechain/
 typechain-types/
 

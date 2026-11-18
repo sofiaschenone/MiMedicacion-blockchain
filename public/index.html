@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiMedicación — Sistema de Gestión y Trazabilidad Farmacológica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-light: #f0f9ff;
+      --primary-border: #bae6fd;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --success-border: #bbf7d0;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --danger-border: #fecaca;
+      --border-color: #e2e8f0;
+      --font-scale: 16px;
+      --card-radius: 16px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+    }
+
+    body.high-contrast {
+      --bg-main: #000000;
+      --bg-card: #121212;
+      --text-main: #ffffff;
+      --text-muted: #cbd5e1;
+      --primary: #38bdf8;
+      --primary-hover: #7dd3fc;
+      --primary-light: #082f49;
+      --primary-border: #0284c7;
+      --border-color: #334155;
+      --card-radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-size: var(--font-scale);
+      line-height: 1.5;
+      padding-bottom: 50px;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    /* Barra Superior */
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 18px 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+    }
+
+    .brand-sub {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    /* Herramientas de Accesibilidad */
+    .accessibility-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 30px;
+    }
+
+    .btn-tool {
+      background: white;
+      color: #0f172a;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s, background 0.15s;
+    }
+
+    .btn-tool:hover {
+      background: #f1f5f9;
+      transform: scale(1.04);
+    }
+
+    /* Contenedor */
+    .container {
+      max-width: 1240px;
+      margin: 24px auto 0;
+      padding: 0 20px;
+    }
+
+    /* Barra de Estado del Sistema */
+    .system-status-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--card-radius);
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+
+    .dot-green {
+      background: #16a34a;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+    }
+
+    .dot-blue {
+      background: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
+
+    /* Layout Principal */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.85fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--card-radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Selector de Pacientes */
+    .patient-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .patient-tab {
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 2px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .patient-tab:hover {
+      border-color: var(--primary);
+    }
+
+    .patient-tab.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #0284c7;
+      color: white;
+      font-weight: 800;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .avatar-female {
+      background: #db2777;
+    }
+
+    /* Ficha Médica Resumida */
+    .patient-summary {
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+
+    .summary-item strong {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: block;
+    }
+
+    /* Lista de Medicamentos */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .section-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .btn-add-med {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-add-med:hover {
+      background: var(--primary-hover);
+    }
+
+    .med-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .med-card:hover {
+      border-color: var(--primary-border);
+      transform: translateY(-1px);
+    }
+
+    .med-time {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--primary);
+      min-width: 90px;
+    }
+
+    .med-details h4 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .med-details p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .btn-status-toggle {
+      background: var(--success-light);
+      border: 1px solid var(--success-border);
+      color: var(--success);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-status-toggle:hover {
+      transform: scale(1.03);
+    }
+
+    .status-pending {
+      background: var(--warning-light);
+      border-color: #fde68a;
+      color: var(--warning);
+    }
+
+    /* Panel de Certificación Blockchain */
+    .field-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .info-box {
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+
+    .contract-link {
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+    }
+
+    .contract-link:hover {
+      text-decoration: underline;
+    }
+
+    .hash-container {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      word-break: break-all;
+      margin-bottom: 18px;
+    }
+
+    .btn-main-action {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 15px 20px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+    }
+
+    .btn-main-action:hover:not(:disabled) {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-main-action:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Módulo de Verificación Forense */
+    .audit-section {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .audit-section h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .switch-card {
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .switch-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .switch-label input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .btn-audit {
+      width: 100%;
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+
+    .btn-audit:hover {
+      background: #1e293b;
+    }
+
+    /* Alerta de Resultado */
+    .alert-panel {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 12px;
+      display: none;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .alert-success {
+      background: var(--success-light);
+      border: 1px solid var(--success-border);
+      color: #14532d;
+    }
+
+    .alert-danger {
+      background: var(--danger-light);
+      border: 1px solid var(--danger-border);
+      color: #7f1d1d;
+    }
+
+    .alert-title {
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-body {
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .etherscan-btn {
+      display: inline-block;
+      margin-top: 10px;
+      background: #0f172a;
+      color: white;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      transition: background 0.15s;
+    }
+
+    .etherscan-btn:hover {
+      background: #1e293b;
+    }
+
+    /* Modal para agregar medicamento */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border-radius: var(--card-radius);
+      padding: 24px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-main);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #334155;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Encabezado Institucional -->
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">🏥</div>
+        <div>
+          <h1 class="brand-title">MiMedicación</h1>
+          <p class="brand-sub">Sistema de Trazabilidad y Gestión de Pacientes — Universidad Provincial de Ezeiza</p>
+        </div>
+      </div>
+
+      <!-- Barra de Accesibilidad -->
+      <div class="accessibility-tools">
+        <span style="font-size: 0.8rem; font-weight: 700; color: #cbd5e1;">Accesibilidad:</span>
+        <button class="btn-tool" onclick="cambiarTamanoFuente(1)">A+</button>
+        <button class="btn-tool" onclick="cambiarTamanoFuente(-1)">A-</button>
+        <button class="btn-tool" onclick="alternarContraste()">Contraste</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- Barra de Estado del Sistema -->
+    <section class="system-status-bar">
+      <div class="status-group">
+        <div class="status-pill">
+          <span class="dot dot-green"></span>
+          <span>Red Sepolia: <strong>En línea</strong></span>
+        </div>
+        <div class="status-pill">
+          <span class="dot dot-blue"></span>
+          <span>Base de Datos: <strong id="db-motor-badge">Almacenamiento Persistente</strong></span>
+        </div>
+      </div>
+      <div class="status-pill" id="current-clock">
+        <!-- Fecha del día -->
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+
+      <!-- COLUMNA IZQUIERDA: GESTIÓN DE PACIENTES Y MEDICACIÓN -->
+      <section>
+        <div class="card">
+          <div class="card-title-row">
+            <h2 class="card-title">📋 Pacientes en Tratamiento</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Monitoreo Diario</span>
+          </div>
+
+          <!-- Pestañas de Pacientes -->
+          <div class="patient-selector">
+            <button class="patient-tab active" onclick="seleccionarPaciente('PAC_001')" id="tab-PAC_001">
+              <div class="avatar">C</div>
+              <div>
+                <strong style="font-size: 1rem; display: block;">Don Carlos Alberto</strong>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">82 años • 3 tomas programadas</span>
+              </div>
+            </button>
+            <button class="patient-tab" onclick="seleccionarPaciente('PAC_002')" id="tab-PAC_002">
+              <div class="avatar avatar-female">R</div>
+              <div>
+                <strong style="font-size: 1rem; display: block;">Doña Rosa Nélida</strong>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">77 años • 2 tomas programadas</span>
+              </div>
+            </button>
+          </div>
+
+          <!-- Ficha Resumida del Paciente -->
+          <div class="patient-summary">
+            <div class="summary-item">
+              <strong>Cuidador Responsable</strong>
+              <span id="patient-caregiver">—</span>
+            </div>
+            <div class="summary-item">
+              <strong>Historia Clínica</strong>
+              <span id="patient-hc">—</span>
+            </div>
+            <div class="summary-item" style="grid-column: span 2;">
+              <strong>Diagnóstico</strong>
+              <span id="patient-diagnosis">—</span>
+            </div>
+          </div>
+
+          <!-- Listado de Tomas -->
+          <div class="section-header">
+            <h3>Registro de Medicación Diaria</h3>
+            <button class="btn-add-med" onclick="abrirModalNuevaToma()">+ Nueva Toma</button>
+          </div>
+
+          <div id="med-list-container">
+            <!-- Medicamentos inyectados dinámicamente -->
+          </div>
+        </div>
+      </section>
+
+      <!-- COLUMNA DERECHA: CERTIFICACIÓN CRIPTOGRÁFICA -->
+      <aside>
+        <div class="card">
+          <div class="card-title-row">
+            <h2 class="card-title">🔒 Certificación de Integridad</h2>
+            <span style="font-size: 0.8rem; background: var(--primary-light); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-weight: 700;">
+              Ethereum
+            </span>
+          </div>
+
+          <div class="field-label">Contrato Inteligente en Sepolia</div>
+          <div class="info-box">
+            <a id="contract-link-el" href="#" target="_blank" class="contract-link">
+              Cargando dirección...
+            </a>
+          </div>
+
+          <div class="field-label">Hash SHA-256 del Registro Diario</div>
+          <div class="hash-container" id="hash-box">
+            Calculando huella digital...
+          </div>
+
+          <!-- Botón de Certificación Diaria -->
+          <button class="btn-main-action" id="btn-certificar" onclick="certificarEnBlockchain()">
+            <span>⛓️ Registrar Certificación en Sepolia</span>
+          </button>
+
+          <!-- Sección de Auditoría Forense -->
+          <div class="audit-section">
+            <h4>🛡️ Control de Integridad de Registros</h4>
+            
+            <div class="switch-card">
+              <label class="switch-label">
+                <input type="checkbox" id="tamper-toggle" onchange="recalcularHashEnPantalla()">
+                <span>Simular discrepancia en dosis médica</span>
+              </label>
+            </div>
+
+            <button class="btn-audit" onclick="verificarIntegridad()">
+              <span>🔍 Verificar Integridad Criptográfica</span>
+            </button>
+          </div>
+
+          <!-- Panel de Notificaciones / Resultados -->
+          <div id="alert-box" class="alert-panel">
+            <div class="alert-title" id="alert-title"></div>
+            <div class="alert-body" id="alert-body"></div>
+            <div id="alert-actions"></div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- Modal para Agregar Nueva Toma -->
+  <div class="modal-backdrop" id="modal-toma">
+    <div class="modal-card">
+      <h3 style="margin-bottom: 16px; font-size: 1.2rem;">Agregar Toma de Medicamento</h3>
+      <form id="form-nueva-toma" onsubmit="guardarNuevaToma(event)">
+        <div class="form-group">
+          <label>Medicamento</label>
+          <input type="text" id="input-med-nombre" class="form-input" placeholder="Ej: Losartán 50 mg" required>
+        </div>
+        <div class="form-group">
+          <label>Dosis</label>
+          <input type="text" id="input-med-dosis" class="form-input" placeholder="Ej: 1 comprimido" required>
+        </div>
+        <div class="form-group">
+          <label>Hora Programada</label>
+          <input type="time" id="input-med-hora" class="form-input" value="12:00" required>
+        </div>
+        <div class="form-group">
+          <label>Observaciones</label>
+          <input type="text" id="input-med-obs" class="form-input" placeholder="Ej: Administrar con el almuerzo">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="cerrarModalNuevaToma()">Cancelar</button>
+          <button type="submit" class="btn-add-med">Guardar en Base de Datos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <p>MiMedicación © 2026 — Proyecto Universitario | Universidad Provincial de Ezeiza (UPE)</p>
+  </footer>
+
+  <script>
+    let pacienteActivo = "PAC_001";
+    let pacientes = [];
+    let tamanoFuente = 16;
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      // Fecha en reloj superior
+      const hoy = new Date();
+      document.getElementById("current-clock").innerText = hoy.toLocaleDateString("es-AR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+
+      await cargarInfoSistema();
+      await cargarListaPacientes();
+    });
+
+    // Cargar información de red y contrato
+    async function cargarInfoSistema() {
+      try {
+        const res = await fetch("/api/info");
+        const info = await res.json();
+
+        if (info.contractAddress) {
+          const el = document.getElementById("contract-link-el");
+          el.href = info.contractUrl || `https://sepolia.etherscan.io/address/${info.contractAddress}`;
+          el.innerText = `${info.contractAddress.substring(0, 10)}...${info.contractAddress.substring(info.contractAddress.length - 8)} ↗`;
+        }
+
+        if (info.database && info.database.motor) {
+          document.getElementById("db-motor-badge").innerText = info.database.motor;
+        }
+      } catch (err) {
+        console.error("Error al cargar estado del sistema:", err);
+      }
+    }
+
+    // Cargar pacientes desde la API (conectada a MongoDB / Local)
+    async function cargarListaPacientes() {
+      try {
+        const res = await fetch("/api/pacientes");
+        pacientes = await res.json();
+        renderizarVistaPaciente();
+        recalcularHashEnPantalla();
+      } catch (err) {
+        console.error("Error al cargar pacientes:", err);
+      }
+    }
+
+    // Cambiar de pestaña de paciente
+    function seleccionarPaciente(id) {
+      pacienteActivo = id;
+      document.querySelectorAll(".patient-tab").forEach(tab => tab.classList.remove("active"));
+      document.getElementById(`tab-${id}`).classList.add("active");
+      
+      limpiarAlerta();
+      renderizarVistaPaciente();
+      recalcularHashEnPantalla();
+    }
+
+    // Renderizar datos del paciente actual
+    function renderizarVistaPaciente() {
+      const p = pacientes.find(x => x.paciente === pacienteActivo);
+      if (!p) return;
+
+      document.getElementById("patient-caregiver").innerText = p.cuidadorResponsable || "No asignado";
+      document.getElementById("patient-hc").innerText = p.historiaClinica || "HC-UPE";
+      document.getElementById("patient-diagnosis").innerText = p.diagnostico || "Sin diagnóstico registrado";
+
+      const container = document.getElementById("med-list-container");
+      container.innerHTML = "";
+
+      if (!p.tomas || p.tomas.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); padding: 20px 0; text-align: center;">No hay tomas registradas para hoy.</p>`;
+        return;
+      }
+
+      p.tomas.forEach(toma => {
+        const isTomado = toma.estado === "TOMADO";
+        const div = document.createElement("div");
+        div.className = "med-card";
+        div.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="med-time">${toma.horaProgramada} hs</div>
+            <div class="med-details">
+              <h4>${toma.medicamento}</h4>
+              <p>Dosis: <strong>${toma.dosis}</strong> • ${toma.observaciones || ""}</p>
+            </div>
+          </div>
+          <div>
+            <button class="btn-status-toggle ${isTomado ? '' : 'status-pending'}" onclick="alternarEstadoToma('${toma.id}', '${isTomado ? 'PENDIENTE' : 'TOMADO'}')">
+              ${isTomado ? `✓ Tomado (${toma.horaEfectiva || toma.horaProgramada} hs)` : `⏱ Pendiente`}
+            </button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Alternar estado de toma (actualiza base de datos real)
+    async function alternarEstadoToma(tomaId, nuevoEstado) {
+      try {
+        const res = await fetch("/api/tomas", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pacienteId: pacienteActivo,
+            tomaId: tomaId,
+            nuevoEstado: nuevoEstado
+          })
+        });
+
+        if (res.ok) {
+          await cargarListaPacientes();
+        }
+      } catch (err) {
+        console.error("Error al actualizar toma:", err);
+      }
+    }
+
+    // Recalcular hash en pantalla en tiempo real
+    async function recalcularHashEnPantalla() {
+      const p = pacientes.find(x => x.paciente === pacienteActivo);
+      if (!p) return;
+
+      const isTampered = document.getElementById("tamper-toggle").checked;
+      const copia = JSON.parse(JSON.stringify(p));
+
+      if (isTampered && copia.tomas.length > 0) {
+        copia.tomas[0].medicamento = "Enalapril 20 mg (Registro Manipulado)";
+      }
+
+      const raw = JSON.stringify(copia);
+      const msgBuffer = new TextEncoder().encode(raw);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = "0x" + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const box = document.getElementById("hash-box");
+      box.innerText = hashHex;
+      box.style.color = isTampered ? "#f87171" : "#38bdf8";
+    }
+
+    // Registrar certificación en Sepolia
+    async function certificarEnBlockchain() {
+      const btn = document.getElementById("btn-certificar");
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Procesando transacción en Sepolia...</span>`;
+      limpiarAlerta();
+
+      try {
+        const res = await fetch("/api/anclar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paciente: pacienteActivo })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          mostrarAlerta(
+            "success",
+            "Certificación Emitida Correctamente",
+            `El registro ha sido notariado en la blockchain en el bloque #${data.blockNumber}. Consumo de gas: ${data.gasUsed} unidades.`,
+            data.explorerUrl
+          );
+        } else {
+          const mensaje = data.error || "No se pudo procesar la certificación.";
+          const esConflicto = mensaje.includes("ya ha sido anclado") || mensaje.includes("inmutabilidad");
+          
+          mostrarAlerta(
+            "danger",
+            esConflicto ? "Certificación Previa Registrada" : "Aviso de Transacción",
+            esConflicto 
+              ? `El plan del paciente para la fecha actual ya cuenta con un certificado inmutable sellado en Ethereum Sepolia. La red protege la integridad histórica impidiendo sobreescrituras.`
+              : mensaje
+          );
+        }
+      } catch (err) {
+        mostrarAlerta("danger", "Error de Comunicación", err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>⛓️ Registrar Certificación en Sepolia</span>`;
+      }
+    }
+
+    // Verificar Integridad Criptográfica
+    async function verificarIntegridad() {
+      const isTampered = document.getElementById("tamper-toggle").checked;
+      limpiarAlerta();
+
+      try {
+        const res = await fetch("/api/auditar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paciente: pacienteActivo,
+            simularAdulteracion: isTampered
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.esIntegro) {
+          mostrarAlerta(
+            "success",
+            "Integridad de Registros Verificada",
+            `La huella criptográfica de los datos en base de datos coincide exactamente con el certificado notariado en Ethereum Sepolia.<br><br>
+             <strong>Hash Registrado:</strong> <code style="word-break: break-all;">${data.hashEnBlockchain || data.hashCalculado}</code>`
+          );
+        } else {
+          mostrarAlerta(
+            "danger",
+            "Discrepancia de Integridad Detectada",
+            `Los datos actuales no coinciden con el certificado original sellado en Sepolia.<br><br>
+             <strong>Registro Analizado:</strong> ${data.medicamentoAuditado}<br>
+             <strong>Hash Actual:</strong> <code style="word-break: break-all;">${data.hashCalculado}</code><br>
+             <strong>Hash Original en Blockchain:</strong> <code style="word-break: break-all;">${data.hashEnBlockchain || "No coincidente"}</code>`
+          );
+        }
+      } catch (err) {
+        mostrarAlerta("danger", "Error de Verificación", err.message);
+      }
+    }
+
+    // Mostrar Alerta Limpia
+    function mostrarAlerta(tipo, titulo, cuerpo, linkUrl = null) {
+      const box = document.getElementById("alert-box");
+      const titleEl = document.getElementById("alert-title");
+      const bodyEl = document.getElementById("alert-body");
+      const actionsEl = document.getElementById("alert-actions");
+
+      box.className = `alert-panel ${tipo === "success" ? "alert-success" : "alert-danger"}`;
+      titleEl.innerHTML = (tipo === "success" ? "✓ " : "⚠️ ") + titulo;
+      bodyEl.innerHTML = cuerpo;
+
+      if (linkUrl) {
+        actionsEl.innerHTML = `<a href="${linkUrl}" target="_blank" class="etherscan-btn">Ver Certificado en Sepolia Etherscan ↗</a>`;
+      } else {
+        actionsEl.innerHTML = "";
+      }
+
+      box.style.display = "block";
+    }
+
+    function limpiarAlerta() {
+      document.getElementById("alert-box").style.display = "none";
+    }
+
+    // Modal de Nueva Toma
+    function abrirModalNuevaToma() {
+      document.getElementById("modal-toma").style.display = "flex";
+    }
+
+    function cerrarModalNuevaToma() {
+      document.getElementById("modal-toma").style.display = "none";
+      document.getElementById("form-nueva-toma").reset();
+    }
+
+    async function guardarNuevaToma(e) {
+      e.preventDefault();
+
+      const medicamento = document.getElementById("input-med-nombre").value;
+      const dosis = document.getElementById("input-med-dosis").value;
+      const hora = document.getElementById("input-med-hora").value;
+      const obs = document.getElementById("input-med-obs").value;
+
+      try {
+        const res = await fetch("/api/tomas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pacienteId: pacienteActivo,
+            medicamento,
+            dosis,
+            horaProgramada: hora,
+            observaciones: obs
+          })
+        });
+
+        if (res.ok) {
+          cerrarModalNuevaToma();
+          await cargarListaPacientes();
+        }
+      } catch (err) {
+        alert("Error al guardar toma: " + err.message);
+      }
+    }
+
+    // Accesibilidad
+    function cambiarTamanoFuente(delta) {
+      tamanoFuente = Math.max(14, Math.min(22, tamanoFuente + delta * 2));
+      document.documentElement.style.setProperty("--font-scale", `${tamanoFuente}px`);
+    }
+
+    function alternarContraste() {
+      document.body.classList.toggle("high-contrast");
+    }
+  </script>
+</body>
+</html>

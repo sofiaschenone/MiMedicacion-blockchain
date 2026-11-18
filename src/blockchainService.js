@@ -7,10 +7,21 @@
 
 const { ethers } = require("ethers");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
 // Carga del ABI compilado del Smart Contract
 const contractAbi = require("./contractAbi.json");
+
+// Carga automática de metadatos de despliegue si existen
+let deploymentInfo = {};
+try {
+  const deployPath = path.join(__dirname, "deployment-info.json");
+  if (fs.existsSync(deployPath)) {
+    deploymentInfo = JSON.parse(fs.readFileSync(deployPath, "utf8"));
+  }
+} catch (e) {}
 
 /**
  * Normaliza y ordena de forma recursiva un objeto JavaScript para garantizar
@@ -78,8 +89,13 @@ function generarHashDiario(datosTomas) {
 function obtenerContratoConectado() {
   const privateKey = process.env.PRIVATE_KEY;
   const alchemyApiKey = process.env.ALCHEMY_API_KEY;
-  const contractAddress = process.env.CONTRACT_ADDRESS;
+  let contractAddress = process.env.CONTRACT_ADDRESS;
   const customRpcUrl = process.env.SEPOLIA_RPC_URL;
+
+  // Fallback a deployment-info.json si no está en el .env
+  if (!contractAddress || contractAddress === "0x0000000000000000000000000000000000000000") {
+    contractAddress = deploymentInfo.contractAddress;
+  }
 
   if (!privateKey || privateKey.includes("0000000000000000")) {
     throw new Error(

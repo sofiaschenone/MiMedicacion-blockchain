@@ -1,0 +1,69 @@
+[
+  {
+    "paciente": "PAC_001",
+    "nombrePaciente": "Don Carlos Alberto Martínez",
+    "edad": 82,
+    "fecha": "2026-11-18",
+    "cuidadorResponsable": "Lic. Mariana López (Mat. 44.912)",
+    "historiaClinica": "HC-88219-UPE",
+    "diagnostico": "Hipertensión arterial primaria y Diabetes tipo 2",
+    "tomas": [
+      {
+        "id": "toma_001",
+        "horaProgramada": "08:00",
+        "horaEfectiva": "08:05",
+        "medicamento": "Enalapril 10 mg",
+        "dosis": "1 comprimido",
+        "estado": "TOMADO",
+        "observaciones": "Ingesta matutina con agua. Presión arterial: 120/80 mmHg."
+      },
+      {
+        "id": "toma_002",
+        "horaProgramada": "13:00",
+        "horaEfectiva": "13:15",
+        "medicamento": "Metformina 850 mg",
+        "dosis": "1 comprimido",
+        "estado": "TOMADO",
+        "observaciones": "Administrado junto con el almuerzo."
+      },
+      {
+        "id": "toma_003",
+        "horaProgramada": "21:00",
+        "horaEfectiva": "21:02",
+        "medicamento": "Atorvastatina 20 mg",
+        "dosis": "1 comprimido",
+        "estado": "TOMADO",
+        "observaciones": "Toma nocturna antes del descanso."
+      }
+    ]
+  },
+  {
+    "paciente": "PAC_002",
+    "nombrePaciente": "Doña Rosa Nélida Fernández",
+    "edad": 77,
+    "fecha": "2026-11-18",
+    "cuidadorResponsable": "Jorge Fernández (Familiar Registrado)",
+    "historiaClinica": "HC-71402-UPE",
+    "diagnostico": "Hipotiroidismo e Hipertensión leve",
+    "tomas": [
+      {
+        "id": "toma_004",
+        "horaProgramada": "07:30",
+        "horaEfectiva": "07:32",
+        "medicamento": "Levotiroxina 50 mcg",
+        "dosis": "1 comprimido",
+        "estado": "TOMADO",
+        "observaciones": "En ayunas, 30 minutos antes del desayuno."
+      },
+      {
+        "id": "toma_005",
+        "horaProgramada": "20:00",
+        "horaEfectiva": "20:10",
+        "medicamento": "Losartán 50 mg",
+        "dosis": "1 comprimido",
+        "estado": "TOMADO",
+        "observaciones": "Control de presión vespertino: 125/82 mmHg."
+      }
+    ]
+  }
+]

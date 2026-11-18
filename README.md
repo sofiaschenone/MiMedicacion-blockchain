@@ -27,12 +27,17 @@ Para resolver esto sin perder la inmutabilidad de la red, implementamos el patr�
 mimedicacion-blockchain/
 ├── contracts/
 │   └── RegistroMedicacion.sol    # Smart Contract en Solidity con control onlyOwner
+├── docs/
+│   ├── GUIA_DESPLIEGUE.md        # Guía técnica detallada de despliegue en Sepolia
+│   ├── MANUAL_DE_USUARIO.md      # Manual de usuario con escenarios y capturas
+│   └── capturas/                 # Carpeta para capturas de pantalla de la defensa
 ├── scripts/
 │   └── deploy.js                # Script de despliegue automatizado a Sepolia
 ├── src/
 │   ├── blockchainService.js     # Servicio Node.js con Ethers.js v6 y crypto SHA-256
 │   ├── contractAbi.json         # ABI oficial del contrato compilado
 │   ├── cron.js                  # Automatización diaria a las 23:59hs (node-cron)
+│   ├── demoAuditoria.js         # Script interactivo de auditoría y detección de fraude
 │   └── deployment-info.json     # Metadatos generados tras el despliegue
 ├── test/
 │   └── RegistroMedicacion.test.js # Pruebas unitarias automatizadas (Chai + Hardhat)
@@ -170,6 +175,21 @@ Para dejar el servicio corriendo en producción:
 npm run cron
 ```
 *El sistema quedará en espera y se ejecutará automáticamente todos los días a las 23:59 hs.*
+
+#### C. Modo Auditoría & Detección de Fraude en Vivo:
+Para demostrar qué sucede si alguien intenta manipular un registro en la base de datos:
+
+```bash
+npm run demo:auditoria
+```
+*Compara el registro original contra uno adulterado y demuestra el Efecto Avalancha de SHA-256 ante el jurado.*
+
+---
+
+## 📚 Documentación Adicional
+
+- [📘 Guía Oficial de Despliegue en Sepolia](docs/GUIA_DESPLIEGUE.md): Pasos para configurar Alchemy, MetaMask y verificar el código en Etherscan.
+- [📸 Manual de Usuario y Escenarios de Prueba](docs/MANUAL_DE_USUARIO.md): Documento con los 5 escenarios de demostración y espacios para capturas de pantalla.
 
 ---
 
