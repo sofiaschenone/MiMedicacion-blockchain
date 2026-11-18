@@ -102,7 +102,7 @@ npm run compile
 npm test
 ```
 
-Los **122 casos** deben pasar en verde, repartidos en 6 suites:
+Los **122 casos** deben pasar en verde, repartidos en 7 suites:
 - ✅ Contrato: owner, registro, emisión del evento `HashRegistrado`, `onlyOwner`, inmutabilidad y `verificarHash`.
 - ✅ Hash diario: determinismo de la canonicalización (mismo registro, mismo hash).
 - ✅ Validación de fechas y día calendario argentino, incluido el 29 de febrero.

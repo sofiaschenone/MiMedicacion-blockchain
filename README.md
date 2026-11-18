@@ -51,7 +51,7 @@ mimedicacion-blockchain/
 │   ├── server.js                 # Servidor HTTP y API REST del tablero
 │   ├── validacion.js             # Validación de fechas y día calendario argentino
 │   └── deployment-info.json      # Metadatos del despliegue (local, no versionado)
-├── test/                         # 6 suites de pruebas (122 casos)
+├── test/                         # 7 suites de pruebas (122 casos)
 ├── hardhat.config.js             # Configuración de compilador y red Sepolia
 ├── package.json                  # Dependencias y scripts de ejecución
 ├── .env.example                  # Plantilla de variables de entorno
@@ -132,7 +132,7 @@ Verifica que el Smart Contract compile y que todas las pruebas pasen en la máqu
 npm test
 ```
 
-Deberás ver todos los tests pasando en verde (**122 casos** en 6 suites):
+Deberás ver todos los tests pasando en verde (**122 casos** en 7 suites):
 
 | Suite | Qué cubre |
 | :--- | :--- |
