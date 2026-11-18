@@ -229,8 +229,18 @@ async function requestHandler(req, res) {
   // ==========================================
   let filePath = path.join(PUBLIC_DIR, pathname === "/" ? "index.html" : pathname);
 
+  // Solo las rutas de navegación caen al index.html. Un recurso estático que no
+  // existe debe responder 404: devolver el HTML con 200 hacía que el navegador
+  // cacheara el index como si fuera la imagen y la mostrara rota para siempre.
+  const extensionPedida = path.extname(pathname).toLowerCase();
+  const esNavegacion = pathname === "/" || extensionPedida === "" || extensionPedida === ".html";
+
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
+      if (!esNavegacion) {
+        res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+        return res.end(JSON.stringify({ error: "Recurso no encontrado" }));
+      }
       filePath = path.join(PUBLIC_DIR, "index.html");
     }
 
@@ -252,7 +262,7 @@ async function requestHandler(req, res) {
         res.writeHead(500);
         res.end(`Error: ${error.code}`);
       } else {
-        res.writeHead(200, { "Content-Type": contentType });
+        res.writeHead(200, { "Content-Type": contentType, "Cache-Control": "no-store" });
         res.end(content, "utf-8");
       }
     });
