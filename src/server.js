@@ -33,6 +33,22 @@ try {
   }
 } catch (e) {}
 
+// El proceso lee .env una sola vez al arrancar: si se desplegó otro contrato y
+// no se reinició, el backend sigue auditando contra la dirección anterior y
+// responde NO_ANCLADO para registros que sí están anclados en el contrato nuevo.
+if (
+  deploymentInfo.contractAddress &&
+  process.env.CONTRACT_ADDRESS &&
+  deploymentInfo.contractAddress.toLowerCase() !== process.env.CONTRACT_ADDRESS.toLowerCase()
+) {
+  console.warn(
+    "\n⚠️  ATENCIÓN: .env apunta a un contrato distinto del último desplegado.\n" +
+      `   .env                        : ${process.env.CONTRACT_ADDRESS}\n` +
+      `   src/deployment-info.json    : ${deploymentInfo.contractAddress}\n` +
+      "   Reiniciá el servidor después de cambiar CONTRACT_ADDRESS.\n"
+  );
+}
+
 /**
  * Responder JSON con cabeceras CORS
  */
