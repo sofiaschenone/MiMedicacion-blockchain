@@ -3,7 +3,7 @@
     "paciente": "PAC_001",
     "nombrePaciente": "Don Carlos Alberto Martínez",
     "edad": 82,
-    "fecha": "2026-11-18",
+    "fecha": "2026-11-25",
     "cuidadorResponsable": "Lic. Mariana López (Mat. 44.912)",
     "historiaClinica": "HC-88219-UPE",
     "diagnostico": "Hipertensión arterial primaria y Diabetes tipo 2",
@@ -34,15 +34,6 @@
         "dosis": "1 comprimido",
         "estado": "TOMADO",
         "observaciones": "Toma nocturna antes del descanso."
-      },
-      {
-        "medicamento": "Buscapina 500 mg",
-        "dosis": "1 comprimido blando",
-        "horaProgramada": "12:00",
-        "observaciones": "Lo administra la enfermera Claudia, por dolores estomacales",
-        "estado": "TOMADO",
-        "id": "toma_1795007443945",
-        "horaEfectiva": "10:10"
       }
     ]
   },
@@ -50,7 +41,7 @@
     "paciente": "PAC_002",
     "nombrePaciente": "Doña Rosa Nélida Fernández",
     "edad": 77,
-    "fecha": "2026-11-18",
+    "fecha": "2026-11-25",
     "cuidadorResponsable": "Jorge Fernández (Familiar Registrado)",
     "historiaClinica": "HC-71402-UPE",
     "diagnostico": "Hipotiroidismo e Hipertensión leve",
