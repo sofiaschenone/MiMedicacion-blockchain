@@ -31,7 +31,7 @@ El sistema resuelve un problema crítico en salud digital: **cómo garantizar la
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   CAPA DE CONFIANZA PÚBLICA (ON-CHAIN)                 │
 │                                                                        │
-│   [Smart Contract: RegistroMedicacion en Sepolia]                     │
+│   [Smart Contract: RegistroMedicacion en Sepolia]                      │
 │   - Sella únicamente: mapping(pacienteId => fecha => hash)             │
 │   - Notario digital descentralizado e inalterable                      │
 └────────────────────────────────────────────────────────────────────────┘
@@ -65,7 +65,7 @@ Publicar el Smart Contract `RegistroMedicacion.sol` en la red de pruebas descent
    npm run deploy:sepolia
    ```
 3. El script compila el código, firma la transacción con la clave del backend y devuelve la dirección pública del contrato.
-4. Se actualiza la variable `CONTRACT_ADDRESS` en el archivo `.env`.
+4. El script informa la dirección y la guarda en `src/deployment-info.json`. Después hay que copiarla a mano en `CONTRACT_ADDRESS` del archivo `.env` (el script no lo edita).
 
 > 📷 **Captura de Pantalla 1 — Despliegue y Confirmación en Etherscan:**  
 > *(Pega aquí la captura de tu terminal mostrando el contrato desplegado y la pestaña del navegador con Sepolia Etherscan)*  
@@ -156,11 +156,10 @@ Demostrar el **Efecto Avalancha** de la función resumen SHA-256: si un atacante
    ```bash
    npm run demo:auditoria
    ```
-2. El script ejecuta dos fases comparativas:
-   - **Caso A (Registro Genuino):** Compara el hash calculado contra el sellado en Sepolia. Retorna:  
-     `✅ INTEGRIDAD CONFIRMADA: El registro no ha sufrido ninguna modificación.`
-   - **Caso B (Registro Adulterado):** Simula que alguien cambió "10 mg" por "20 mg". Retorna:  
-     `🚨 ALERTA DE SEGURIDAD: Los datos locales discrepan del hash en la blockchain (posible alteración o fraude).`
+2. El script ejecuta tres fases:
+   - **Caso A (Registro Genuino):** Compara el hash de la base contra el sellado en Sepolia. Retorna `INTEGRO` con el mensaje de integridad confirmada.
+   - **Caso B (Registro Adulterado):** Simula que alguien cambió una dosis. Retorna `ALTERADO` con la alerta de seguridad.
+   - **Caso C (Registro nunca anclado):** Retorna `NO_ANCLADO`, aclarando que la ausencia de anclaje no es una alteración ni un fraude.
 
 > 📷 **Captura de Pantalla 5 — Detección de Fraude por Efecto Avalancha:**  
 > *(Pega aquí la captura de la consola demostrando la alerta de seguridad en vivo)*  
