@@ -47,11 +47,10 @@ module.exports = {
     },
   },
   etherscan: {
-    // Permite verificar el código fuente en Sepolia Etherscan automáticamente:
-    // npx hardhat verify --network sepolia <DIRECCION_DEL_CONTRATO>
-    apiKey: {
-      sepolia: ETHERSCAN_API_KEY,
-    },
+    // Permite verificar el código fuente en Sepolia Etherscan automáticamente.
+    // La API v1 está descontinuada: Etherscan v2 espera una única clave (no un
+    // mapa por red), que el plugin resuelve con la red configurada.
+    apiKey: ETHERSCAN_API_KEY,
   },
   paths: {
     sources: "./contracts",
