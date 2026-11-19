@@ -31,7 +31,7 @@ El sistema resuelve un problema crítico en salud digital: **cómo garantizar la
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   CAPA DE CONFIANZA PÚBLICA (ON-CHAIN)                 │
 │                                                                        │
-│   [Smart Contract: RegistroMedicacion en Sepolia]                     │
+│   [Smart Contract: RegistroMedicacion en Sepolia]                      │
 │   - Sella únicamente: mapping(pacienteId => fecha => hash)             │
 │   - Notario digital descentralizado e inalterable                      │
 └────────────────────────────────────────────────────────────────────────┘
