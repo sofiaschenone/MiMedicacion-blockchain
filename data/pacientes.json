@@ -43,6 +43,24 @@
         "estado": "TOMADO",
         "id": "toma_1795007443945",
         "horaEfectiva": "10:10"
+      },
+      {
+        "medicamento": "Paracetamol 1000mg",
+        "dosis": "2",
+        "horaProgramada": "17:00",
+        "observaciones": "Lo brinda el Dr Ramirez por dolor de cabeza",
+        "estado": "TOMADO",
+        "id": "toma_1795009388700",
+        "horaEfectiva": "10:43"
+      },
+      {
+        "medicamento": "Buscapina 1000 mg",
+        "dosis": "2",
+        "horaProgramada": "17:00",
+        "observaciones": "Lo administra la enfermera Claudia, por dolores estomacales",
+        "estado": "TOMADO",
+        "id": "toma_1795010733734",
+        "horaEfectiva": "11:05"
       }
     ]
   },
