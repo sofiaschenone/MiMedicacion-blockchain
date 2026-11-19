@@ -46,7 +46,7 @@ Vercel aloja tanto el Frontend como la API Serverless de forma gratuita.
 | :--- | :--- |
 | `PRIVATE_KEY` | Tu clave privada de MetaMask (con `0x` al inicio). |
 | `ALCHEMY_API_KEY` | Tu API Key de Alchemy para Sepolia. |
-| `CONTRACT_ADDRESS` | `0x22dd9c3fFd0b6C0C920286a5634b9E67e990B7a2` |
+| `CONTRACT_ADDRESS` | `0x8dbB5e9Fe07B30ad1c2d8FaEdd5d2FE99Cc876dF` |
 | `MONGODB_URI` | La connection string obtenida en el Paso 1. |
 
 5. Haz clic en el botón azul **"Deploy"**.

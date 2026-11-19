@@ -102,12 +102,13 @@ npm run compile
 npm test
 ```
 
-Los 5 tests unitarios deben pasar en verde:
-- ✅ Asignación del owner
-- ✅ Registro exitoso de hashes y emisión de eventos
-- ✅ Bloqueo de cuentas no autorizadas (`onlyOwner`)
-- ✅ Rechazo de sobreescrituras (inmutabilidad)
-- ✅ Verificación de integridad matemática
+Los **122 casos** deben pasar en verde, repartidos en 7 suites:
+- ✅ Contrato: owner, registro, emisión del evento `HashRegistrado`, `onlyOwner`, inmutabilidad y `verificarHash`.
+- ✅ Hash diario: determinismo de la canonicalización (mismo registro, mismo hash).
+- ✅ Validación de fechas y día calendario argentino, incluido el 29 de febrero.
+- ✅ Auditoría en tres estados: `INTEGRO`, `ALTERADO` y `NO_ANCLADO`.
+- ✅ Clasificación de errores al anclar: cada rechazo se reporta por su causa real.
+- ✅ Resumen del lote diario y cierre del proceso que ejecuta el cron.
 
 ---
 

@@ -25,26 +25,37 @@ Para resolver esto sin perder la inmutabilidad de la red, implementamos el patr�
 
 ```text
 mimedicacion-blockchain/
+├── api/
+│   └── index.js                  # Adaptador serverless (Vercel) hacia src/server.js
 ├── contracts/
 │   └── RegistroMedicacion.sol    # Smart Contract en Solidity con control onlyOwner
+├── data/
+│   └── pacientes.json            # Base local de respaldo (fallback sin MongoDB)
 ├── docs/
 │   ├── GUIA_DESPLIEGUE.md        # Guía técnica detallada de despliegue en Sepolia
 │   ├── MANUAL_DE_USUARIO.md      # Manual de usuario con escenarios y capturas
 │   └── capturas/                 # Carpeta para capturas de pantalla de la defensa
+├── public/
+│   ├── index.html                # Aplicación web (tablero de enfermería)
+│   └── presentacion.html         # Presentación de la defensa
 ├── scripts/
-│   └── deploy.js                # Script de despliegue automatizado a Sepolia
+│   ├── deploy.js                 # Script de despliegue automatizado a Sepolia
+│   └── seedDatabase.js           # Carga de datos de demostración
 ├── src/
-│   ├── blockchainService.js     # Servicio Node.js con Ethers.js v6 y crypto SHA-256
-│   ├── contractAbi.json         # ABI oficial del contrato compilado
-│   ├── cron.js                  # Automatización diaria a las 23:59hs (node-cron)
-│   ├── demoAuditoria.js         # Script interactivo de auditoría y detección de fraude
-│   └── deployment-info.json     # Metadatos generados tras el despliegue
-├── test/
-│   └── RegistroMedicacion.test.js # Pruebas unitarias automatizadas (Chai + Hardhat)
-├── hardhat.config.js            # Configuración de compilador y red Sepolia
-├── package.json                 # Dependencias y scripts de ejecución
-├── .env.example                 # Plantilla de variables de entorno
-└── README.md                    # Esta guía
+│   ├── blockchainService.js      # Ethers.js v6, hash SHA-256 canónico y auditoría
+│   ├── contractAbi.json          # ABI oficial del contrato compilado
+│   ├── cron.js                   # Automatización diaria a las 23:59hs (node-cron)
+│   ├── db.js                     # Persistencia (MongoDB / Supabase / JSON local)
+│   ├── demoAuditoria.js          # Demostración de adulteración y detección
+│   ├── resumen.js                # Resumen del lote diario
+│   ├── server.js                 # Servidor HTTP y API REST del tablero
+│   ├── validacion.js             # Validación de fechas y día calendario argentino
+│   └── deployment-info.json      # Metadatos del despliegue (local, no versionado)
+├── test/                         # 7 suites de pruebas (122 casos)
+├── hardhat.config.js             # Configuración de compilador y red Sepolia
+├── package.json                  # Dependencias y scripts de ejecución
+├── .env.example                  # Plantilla de variables de entorno
+└── README.md                     # Esta guía
 ```
 
 ---
@@ -121,12 +132,17 @@ Verifica que el Smart Contract compile y que todas las pruebas pasen en la máqu
 npm test
 ```
 
-Deberás ver todos los tests pasando en verde:
-- ✅ Asignación correcta del `owner` al backend.
-- ✅ Registro exitoso de hashes y emisión del evento `HashRegistrado`.
-- ✅ Rechazo de wallets no autorizadas (`onlyOwner`).
-- ✅ Protección de inmutabilidad: no permite sobreescribir una fecha ya sellada.
-- ✅ Verificación matemática de integridad (detección de manipulaciones).
+Deberás ver todos los tests pasando en verde (**122 casos** en 7 suites):
+
+| Suite | Qué cubre |
+| :--- | :--- |
+| `RegistroMedicacion.test.js` | Contrato: owner, registro, `onlyOwner`, inmutabilidad y `verificarHash`. |
+| `hash.test.js` | Determinismo de la canonicalización y del hash diario. |
+| `validacion.test.js` | Fechas de registro y día calendario argentino (incluye 29 de febrero). |
+| `auditoria.test.js` | Los tres estados: íntegro, alterado y no anclado. |
+| `erroresAnclaje.test.js` | Cada rechazo del contrato se reporta con su causa real. |
+| `resumen.test.js` | Resumen del lote: anclaje nuevo, ya anclado y fallos. |
+| `cron.test.js` | Cierre del proceso diario con el resultado real del lote. |
 
 ---
 
@@ -182,7 +198,33 @@ Para demostrar qué sucede si alguien intenta manipular un registro en la base d
 ```bash
 npm run demo:auditoria
 ```
-*Compara el registro original contra uno adulterado y demuestra el Efecto Avalancha de SHA-256 ante el jurado.*
+*Lee el registro real de la base, lo compara contra la blockchain y después simula una dosis adulterada. Recorre los tres estados de auditoría: íntegro, alterado y no anclado.*
+
+> Requiere `npm run db:seed` y que el registro de `PAC_001` esté anclado para su fecha.
+
+---
+
+### 7️⃣ Levantar la aplicación web (tablero de enfermería)
+
+```bash
+npm run db:seed   # carga los pacientes de demostración
+npm start         # abre el tablero en http://localhost:3000
+```
+
+El tablero permite ver las tomas del día, agregar tomas, certificar el día en Sepolia y auditar la integridad con el interruptor **"Simular discrepancia en dosis médica"**.
+
+**API REST disponible:**
+
+| Método y ruta | Función |
+| :--- | :--- |
+| `GET /api/info` | Red, contrato y motor de base de datos en uso. |
+| `GET /api/pacientes` | Pacientes con sus tomas. |
+| `POST /api/tomas` · `PATCH /api/tomas` | Alta y actualización de tomas. |
+| `GET /api/hash?paciente=&fecha=` | Hash SHA-256 canónico del registro. |
+| `POST /api/anclar` | Ancla el hash del día en Sepolia. |
+| `POST /api/auditar` | Audita integridad: `INTEGRO`, `ALTERADO`, `NO_ANCLADO` o `NO_AUDITABLE`. |
+
+> La auditoría distingue **ausencia de anclaje** de **alteración**: que un día nunca se haya notarizado no es un fraude.
 
 ---
 
@@ -193,7 +235,7 @@ npm run demo:auditoria
 
 ---
 
-## ??? Preguntas Frecuentes
+## ❓ Preguntas Frecuentes
 
 | Pregunta de la Cátedra | Respuesta Técnica Arquitectónica |
 | :--- | :--- |
@@ -208,7 +250,7 @@ npm run demo:auditoria
 
 - **Error: `ProviderError: insufficient funds for intrinsic transaction cost`**  
   👉 Tu wallet no tiene suficiente Sepolia ETH para pagar el gas de la red. Solicita más ETH gratis en los faucets indicados en los requisitos.
-- **Error: `RegistroYaExistente` al correr de nuevo `npm run cron:test` el mismo día**  
-  👉 ¡Esto demuestra que la inmutabilidad funciona! El contrato rechaza sobrescribir los datos de una fecha ya sellada. Para probarlo nuevamente, puedes cambiar la fecha en la simulación o desplegar una nueva instancia con `npm run deploy:sepolia`.
+- **Al correr de nuevo `npm run cron:test` el mismo día el lote reporta `SIN_CAMBIOS`**  
+  👉 Es el comportamiento esperado, no un error: el contrato rechaza sobrescribir una fecha ya sellada y el cron lo informa como *ya anclado*, sin alertar de una falla. Para volver a anclar, usá otra fecha o desplegá una instancia nueva con `npm run deploy:sepolia`.
 - **Error de scripts en PowerShell en Windows (`SecurityError: UnauthorizedAccess`)**  
   👉 Abre la terminal como **Command Prompt (CMD)** dentro de VS Code, o ejecuta: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.

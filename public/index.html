@@ -22,6 +22,7 @@
       --success-border: #bbf7d0;
       --warning: #d97706;
       --warning-light: #fffbeb;
+      --warning-border: #fcd34d;
       --danger: #dc2626;
       --danger-light: #fef2f2;
       --danger-border: #fecaca;
@@ -559,6 +560,14 @@
       color: #7f1d1d;
     }
 
+    /* Estado intermedio: el registro no está anclado o no es auditable, pero eso
+       no es una alteración ni implica fraude. */
+    .alert-warning {
+      background: var(--warning-light);
+      border: 1px solid var(--warning-border);
+      color: #78350f;
+    }
+
     .alert-title {
       font-weight: 800;
       font-size: 1.05rem;
@@ -715,14 +724,14 @@
               <div class="avatar">C</div>
               <div>
                 <strong style="font-size: 1rem; display: block;">Don Carlos Alberto</strong>
-                <span style="font-size: 0.85rem; color: var(--text-muted);">82 años • 3 tomas programadas</span>
+                <span id="tab-detalle-PAC_001" style="font-size: 0.85rem; color: var(--text-muted);">82 años • 3 tomas programadas</span>
               </div>
             </button>
             <button class="patient-tab" onclick="seleccionarPaciente('PAC_002')" id="tab-PAC_002">
               <div class="avatar avatar-female">R</div>
               <div>
                 <strong style="font-size: 1rem; display: block;">Doña Rosa Nélida</strong>
-                <span style="font-size: 0.85rem; color: var(--text-muted);">77 años • 2 tomas programadas</span>
+                <span id="tab-detalle-PAC_002" style="font-size: 0.85rem; color: var(--text-muted);">77 años • 2 tomas programadas</span>
               </div>
             </button>
           </div>
@@ -888,11 +897,24 @@
       try {
         const res = await fetch("/api/pacientes");
         pacientes = await res.json();
+        actualizarDetalleDePestanas();
         renderizarVistaPaciente();
         recalcularHashEnPantalla();
       } catch (err) {
         console.error("Error al cargar pacientes:", err);
       }
+    }
+
+    // El subtítulo de cada pestaña refleja la cantidad real de tomas cargadas,
+    // en lugar de un texto fijo que deja de coincidir cuando se agrega una toma.
+    function actualizarDetalleDePestanas() {
+      pacientes.forEach((p) => {
+        const el = document.getElementById(`tab-detalle-${p.paciente}`);
+        if (!el) return;
+        const cantidad = Array.isArray(p.tomas) ? p.tomas.length : 0;
+        const etiqueta = cantidad === 1 ? "toma programada" : "tomas programadas";
+        el.innerText = `${p.edad ? `${p.edad} años • ` : ""}${cantidad} ${etiqueta}`;
+      });
     }
 
     // Cambiar de pestaña de paciente
@@ -967,6 +989,19 @@
     }
 
     // Recalcular hash en pantalla en tiempo real
+    // Copia exacta de la canonicalización del backend (src/blockchainService.js):
+    // ordena las claves de forma recursiva para que el hash sea idéntico al que se
+    // ancla en la blockchain, sin importar el orden de las propiedades en memoria.
+    function canonicalizarParaHash(obj) {
+      if (obj === null || typeof obj !== "object") return obj;
+      if (Array.isArray(obj)) return obj.map(canonicalizarParaHash);
+      const ordenado = {};
+      Object.keys(obj).sort().forEach((clave) => {
+        ordenado[clave] = canonicalizarParaHash(obj[clave]);
+      });
+      return ordenado;
+    }
+
     async function recalcularHashEnPantalla() {
       const p = pacientes.find(x => x.paciente === pacienteActivo);
       if (!p) return;
@@ -978,7 +1013,7 @@
         copia.tomas[0].medicamento = "Enalapril 20 mg (Registro Manipulado)";
       }
 
-      const raw = JSON.stringify(copia);
+      const raw = JSON.stringify(canonicalizarParaHash(copia));
       const msgBuffer = new TextEncoder().encode(raw);
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -1049,21 +1084,54 @@
 
         const data = await res.json();
 
-        if (data.esIntegro) {
+        if (!res.ok) {
+          return mostrarAlerta(
+            "danger",
+            "Error de Verificación",
+            data.error || "No se pudo auditar el registro contra la blockchain."
+          );
+        }
+
+        const hashCalculado = `<strong>Hash de los datos actuales:</strong> <code style="word-break: break-all;">${data.hashCalculado}</code>`;
+        const hashAnclado = data.hashEnBlockchain
+          ? `<br><strong>Hash anclado en Sepolia:</strong> <code style="word-break: break-all;">${data.hashEnBlockchain}</code>`
+          : "";
+        const momentoAnclaje = data.timestampBlockchain
+          ? `<br><strong>Anclado el:</strong> ${data.timestampBlockchain}`
+          : "";
+
+        // Los cuatro estados del backend son distintos a propósito: la ausencia de
+        // anclaje NO es fraude, y un registro no auditable tampoco es una alteración.
+        if (data.estado === "INTEGRO") {
           mostrarAlerta(
             "success",
             "Integridad de Registros Verificada",
             `La huella criptográfica de los datos en base de datos coincide exactamente con el certificado notariado en Ethereum Sepolia.<br><br>
-             <strong>Hash Registrado:</strong> <code style="word-break: break-all;">${data.hashEnBlockchain || data.hashCalculado}</code>`
+             ${hashCalculado}${hashAnclado}${momentoAnclaje}`
+          );
+        } else if (data.estado === "ALTERADO") {
+          mostrarAlerta(
+            "danger",
+            "Registro Alterado",
+            `${data.diagnostico}<br><br>
+             <strong>Registro analizado:</strong> ${data.medicamentoAuditado}<br>
+             ${hashCalculado}${hashAnclado}`
+          );
+        } else if (data.estado === "NO_ANCLADO") {
+          mostrarAlerta(
+            "warning",
+            "Registro sin Anclaje",
+            `${data.diagnostico}<br><br>
+             No hay un certificado previo con el que comparar, así que la aplicación no puede
+             afirmar ni descartar una alteración: solo informa que ese día nunca se notarizó.<br><br>
+             ${hashCalculado}`
           );
         } else {
           mostrarAlerta(
-            "danger",
-            "Discrepancia de Integridad Detectada",
-            `Los datos actuales no coinciden con el certificado original sellado en Sepolia.<br><br>
-             <strong>Registro Analizado:</strong> ${data.medicamentoAuditado}<br>
-             <strong>Hash Actual:</strong> <code style="word-break: break-all;">${data.hashCalculado}</code><br>
-             <strong>Hash Original en Blockchain:</strong> <code style="word-break: break-all;">${data.hashEnBlockchain || "No coincidente"}</code>`
+            "warning",
+            "Registro no Auditable",
+            `${data.diagnostico || "El registro no tiene una fecha canónica con la que comparar el hash."}<br><br>
+             ${hashCalculado}`
           );
         }
       } catch (err) {
@@ -1078,8 +1146,11 @@
       const bodyEl = document.getElementById("alert-body");
       const actionsEl = document.getElementById("alert-actions");
 
-      box.className = `alert-panel ${tipo === "success" ? "alert-success" : "alert-danger"}`;
-      titleEl.innerHTML = (tipo === "success" ? "✓ " : "⚠️ ") + titulo;
+      box.className = `alert-panel ${
+        tipo === "success" ? "alert-success" : tipo === "warning" ? "alert-warning" : "alert-danger"
+      }`;
+      const icono = tipo === "success" ? "✓ " : tipo === "warning" ? "ℹ️ " : "⚠️ ";
+      titleEl.innerHTML = icono + titulo;
       bodyEl.innerHTML = cuerpo;
 
       if (linkUrl) {

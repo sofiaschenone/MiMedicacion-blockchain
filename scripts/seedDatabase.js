@@ -8,13 +8,20 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const db = require("../src/db");
+const { fechaDeRegistroHoy } = require("../src/validacion");
+
+// La fecha del lote se toma del día calendario argentino, igual que el cron y el
+// anclaje: usar UTC acá desincronizaba la base de datos con la blockchain después
+// de las 21:00 ART. SEED_FECHA permite fijar otra fecha (por ejemplo, para dejar
+// preparada una demostración con anticipación).
+const FECHA_DEL_LOTE = process.env.SEED_FECHA || fechaDeRegistroHoy();
 
 const pacientesIniciales = [
   {
     paciente: "PAC_001",
     nombrePaciente: "Don Carlos Alberto Martínez",
     edad: 82,
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: FECHA_DEL_LOTE,
     cuidadorResponsable: "Lic. Mariana López (Mat. 44.912)",
     historiaClinica: "HC-88219-UPE",
     diagnostico: "Hipertensión arterial primaria y Diabetes tipo 2",
@@ -52,7 +59,7 @@ const pacientesIniciales = [
     paciente: "PAC_002",
     nombrePaciente: "Doña Rosa Nélida Fernández",
     edad: 77,
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: FECHA_DEL_LOTE,
     cuidadorResponsable: "Jorge Fernández (Familiar Registrado)",
     historiaClinica: "HC-71402-UPE",
     diagnostico: "Hipotiroidismo e Hipertensión leve",

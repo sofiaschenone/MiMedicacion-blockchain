@@ -1,14 +1,53 @@
 /**
  * @file demoAuditoria.js
- * @description Script interactivo para la defensa universitaria en la UPE.
- *              Demuestra el poder de Data Anchoring y el Efecto Avalancha de SHA-256:
- *              1. Valida un registro íntegro contra Ethereum Sepolia.
- *              2. Simula la adulteración de un registro en la base de datos por un atacante o cuidador infiel.
- *              3. Demuestra cómo la blockchain expone el fraude de inmediato.
+ * @description Script para la defensa universitaria en la UPE.
+ *              Demuestra el poder de Data Anchoring y el Efecto Avalancha de SHA-256
+ *              sobre los datos que la aplicación realmente tiene en su base:
+ *              1. Audita un registro íntegro contra Ethereum Sepolia.
+ *              2. Simula la adulteración de una dosis por un cuidador infiel.
+ *              3. Audita un registro que nunca fue anclado, para mostrar que la
+ *                 ausencia de anclaje no es lo mismo que una alteración.
  * @institution Universidad Provincial de Ezeiza (UPE) - Proyecto MiMedicación
  */
 
-const { generarHashDiario, auditarIntegridadRegistro, consultarHashEnBlockchain } = require("./blockchainService");
+const db = require("./db");
+const {
+  generarHashDiario,
+  auditarIntegridadRegistro,
+  consultarHashEnBlockchain,
+  ESTADO_INTEGRO,
+  ESTADO_ALTERADO,
+  ESTADO_NO_ANCLADO,
+} = require("./blockchainService");
+
+const PACIENTE_ANCLADO = "PAC_001";
+const PACIENTE_SIN_ANCLAR = "PAC_002";
+
+/**
+ * Lee el registro desde la misma base que usa la aplicación. Auditar una copia
+ * hardcodeada medía otra cosa que la que el backend ancla: cualquier diferencia
+ * de campos, fechas u observaciones cambiaba el hash y el veredicto.
+ */
+async function cargarRegistro(pacienteId) {
+  const registro = await db.obtenerPacientePorId(pacienteId);
+  if (!registro) {
+    throw new Error(
+      `No se encontró el paciente ${pacienteId} en la base de datos. Ejecutá 'npm run db:seed' antes de la demo.`
+    );
+  }
+  return registro;
+}
+
+function imprimirVeredicto(auditoria) {
+  const icono =
+    auditoria.estado === ESTADO_INTEGRO ? "✅" : auditoria.estado === ESTADO_ALTERADO ? "❌" : "ℹ️";
+  console.log(`\n📢 Resultado de Auditoría:`);
+  console.log(`   Estado: ${icono} ${auditoria.estado}`);
+  console.log(`   ${auditoria.diagnostico}`);
+  if (auditoria.hashEnBlockchain !== undefined && auditoria.hashEnBlockchain !== null) {
+    console.log(`   Hash anclado en Sepolia: ${auditoria.hashEnBlockchain}`);
+  }
+}
 
 async function main() {
   console.log("==========================================================================");
@@ -16,86 +55,58 @@ async function main() {
   console.log(" 🛡️ DEMOSTRACIÓN EN VIVO: AUDITORÍA CRIPTOGRÁFICA Y DETECCIÓN DE FRAUDE");
   console.log("==========================================================================\n");
 
-  const fechaHoy = new Date().toISOString().split("T")[0];
-  const pacienteId = "PAC_001";
+  const registro = await cargarRegistro(PACIENTE_ANCLADO);
+  const hashOriginal = generarHashDiario(registro);
 
-  // 1. Registro legítimo original (el mismo que se selló en el Cron Job)
-  const registroOriginal = {
-    paciente: pacienteId,
-    nombrePaciente: "Carlos Alberto Martínez",
-    edad: 82,
-    fecha: fechaHoy,
-    cuidadorResponsable: "Enfermera Lic. Mariana López (Mat. 44.912)",
-    tomas: [
-      {
-        horaProgramada: "08:00",
-        horaEfectiva: "08:05",
-        medicamento: "Enalapril 10 mg",
-        dosis: "1 comprimido",
-        estado: "TOMADO",
-        observaciones: "Tomado con vaso de agua en ayunas. Sin molestias."
-      },
-      {
-        horaProgramada: "13:00",
-        horaEfectiva: "13:15",
-        medicamento: "Metformina 850 mg",
-        dosis: "1 comprimido",
-        estado: "TOMADO",
-        observaciones: "Tomado junto al almuerzo."
-      },
-      {
-        horaProgramada: "21:00",
-        horaEfectiva: "21:02",
-        medicamento: "Atorvastatina 20 mg",
-        dosis: "1 comprimido",
-        estado: "TOMADO",
-        observaciones: "Toma nocturna antes de dormir."
-      }
-    ]
-  };
-
+  // ------------------------------------------------------------------
   console.log("📋 ESCENARIO A: Verificación de un Registro Genuino");
   console.log("--------------------------------------------------------------------------");
-  const hashOriginal = generarHashDiario(registroOriginal);
-  console.log(`🔹 Paciente ID: ${pacienteId}`);
-  console.log(`🔹 Fecha: ${fechaHoy}`);
-  console.log(`🔹 Hash SHA-256 Calculado en Memoria:\n    ${hashOriginal}`);
+  console.log(`🔹 Paciente ID: ${registro.paciente}`);
+  console.log(`🔹 Fecha del registro: ${registro.fecha}`);
+  console.log(`🔹 Hash SHA-256 calculado desde la base:\n    ${hashOriginal}`);
 
   try {
-    const consultaOnChain = await consultarHashEnBlockchain(pacienteId, fechaHoy);
-    console.log(`🔹 Hash Notariado en Ethereum Sepolia:\n    ${consultaOnChain.hashRegistro}`);
-    console.log(`🔹 Timestamp de Minado: ${consultaOnChain.fechaLegible}`);
-
-    const auditoria1 = await auditarIntegridadRegistro(registroOriginal);
-    console.log(`\n📢 Resultado de Auditoría:`);
-    console.log(`   ${auditoria1.diagnostico}`);
-    console.log(`   ¿Es íntegro? => ${auditoria1.esIntegro ? "✅ SÍ (100% Auténtico)" : "❌ NO"}\n`);
+    const consulta = await consultarHashEnBlockchain(registro.paciente, registro.fecha);
+    console.log(`🔹 Hash notariado en Ethereum Sepolia:\n    ${consulta.hashRegistro}`);
+    console.log(`🔹 Timestamp de minado: ${consulta.fechaLegible}`);
   } catch (error) {
-    console.warn(`⚠️ Nota: Si aún no desplegaste o no corriste el cron hoy, recuerda correr 'npm run cron:test' primero.`);
-    console.warn(`   Detalle: ${error.message}\n`);
-    return;
+    console.warn(`⚠️ No se pudo leer el anclaje on-chain (${error.message}).`);
+    console.warn(`   Revisá .env y la conexión a la red antes de la defensa.\n`);
   }
 
-  console.log("==========================================================================");
+  imprimirVeredicto(await auditarIntegridadRegistro(registro));
+
+  // ------------------------------------------------------------------
+  console.log("\n==========================================================================");
   console.log(" 🚨 ESCENARIO B: Simulación de Ataque / Adulteración de la Base de Datos");
-  console.log("    (Un cuidador altera la dosis de 'Enalapril 10 mg' a '20 mg' sin autorización)");
+  console.log(`    (Un cuidador altera la primera toma de ${registro.paciente} sin autorización)`);
   console.log("--------------------------------------------------------------------------");
 
-  // Clonamos el registro y modificamos ÚNICAMENTE un número (de 10 mg a 20 mg)
-  const registroAdulterado = JSON.parse(JSON.stringify(registroOriginal));
-  registroAdulterado.tomas[0].medicamento = "Enalapril 20 mg"; // Alteración maliciosa
-
+  const registroAdulterado = JSON.parse(JSON.stringify(registro));
+  if (registroAdulterado.tomas.length > 0) {
+    registroAdulterado.tomas[0].medicamento = "Enalapril 20 mg (Registro Manipulado)";
+  }
   const hashAdulterado = generarHashDiario(registroAdulterado);
-  console.log(`🔸 Hash Legítimo Original : ${hashOriginal}`);
-  console.log(`🔸 Hash del Dato Alterado : ${hashAdulterado}`);
-  console.log(`\n🔍 Observación Criptográfica (Efecto Avalancha):`);
-  console.log(`   Modificar un solo dígito ('1' por '2') cambió el 100% de la cadena hexadecimal.`);
 
-  const auditoria2 = await auditarIntegridadRegistro(registroAdulterado);
-  console.log(`\n📢 Resultado de Auditoría del Registro Alterado:`);
-  console.log(`   ${auditoria2.diagnostico}`);
-  console.log(`   ¿Es íntegro? => ${auditoria2.esIntegro ? "✅ SÍ" : "❌ FRAUDE DETECTADO (Rechazado)"}`);
+  console.log(`🔸 Hash legítimo original : ${hashOriginal}`);
+  console.log(`🔸 Hash del dato alterado : ${hashAdulterado}`);
+  console.log(`\n🔍 Observación Criptográfica (Efecto Avalancha):`);
+  console.log(`   Cambiar una sola dosis altera el 100% de la cadena hexadecimal.`);
+
+  imprimirVeredicto(await auditarIntegridadRegistro(registroAdulterado));
+
+  // ------------------------------------------------------------------
+  console.log("\n==========================================================================");
+  console.log(" ℹ️ ESCENARIO C: Registro que nunca fue anclado");
+  console.log("    (La ausencia de anclaje NO es un fraude, y el sistema no lo reporta como tal)");
+  console.log("--------------------------------------------------------------------------");
+
+  const sinAnclar = await cargarRegistro(PACIENTE_SIN_ANCLAR);
+  imprimirVeredicto(await auditarIntegridadRegistro(sinAnclar));
   console.log("==========================================================================\n");
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(`\n❌ ${error.message}`);
+  process.exitCode = 1;
+});

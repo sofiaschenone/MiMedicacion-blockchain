@@ -69,4 +69,60 @@ describe("Smart Contract: RegistroMedicacion (Data Anchoring)", function () {
     const hashAdulterado = "0x" + crypto.createHash("sha256").update("tomas manipuladas").digest("hex");
     expect(await registro.verificarHash(pacienteId, fecha, hashAdulterado)).to.be.false;
   });
+
+  // ==========================================
+  //     VALIDACIONES DE ENTRADA DEL CONTRATO
+  // ==========================================
+  // Estas guardas ya existen en el contrato: las pruebas no las implementan,
+  // solo demuestran que están y que no pueden desaparecer sin romper la suite.
+
+  it("Debe rechazar un identificador de paciente vacío con el error IdentificadorVacio", async function () {
+    await expect(
+      registro.registrarHash("", fecha, hashValido)
+    ).to.be.revertedWithCustomError(registro, "IdentificadorVacio");
+  });
+
+  it("Debe rechazar una fecha vacía con el error FechaVacia", async function () {
+    await expect(
+      registro.registrarHash(pacienteId, "", hashValido)
+    ).to.be.revertedWithCustomError(registro, "FechaVacia");
+  });
+
+  it("Debe rechazar un hash nulo con el error HashInvalido", async function () {
+    await expect(
+      registro.registrarHash(pacienteId, fecha, ethers.ZeroHash)
+    ).to.be.revertedWithCustomError(registro, "HashInvalido");
+  });
+
+  it("Debe rechazar la consulta de un registro inexistente con el error RegistroNoEncontrado", async function () {
+    // Par paciente/fecha que nunca fue anclado: la consulta no debe devolver
+    // ceros en silencio, sino fallar con el error específico del contrato.
+    const pacienteInexistente = "PAC_INEXISTENTE";
+    const fechaInexistente = "2026-11-14";
+
+    await expect(
+      registro.consultarHash(pacienteInexistente, fechaInexistente)
+    )
+      .to.be.revertedWithCustomError(registro, "RegistroNoEncontrado")
+      .withArgs(pacienteInexistente, fechaInexistente);
+  });
+
+  it("Debe reportar como no válido un registro inexistente al verificar (comportamiento INTENCIONAL)", async function () {
+    // OJO: este false es intencional y NO debe "arreglarse" desde el contrato.
+    //
+    // La función verificarHash no distingue entre "el registro no existe" y
+    // "el hash no coincide": en ambos casos devuelve false. Esa ambigüedad es
+    // deliberada, porque distinguir los dos casos (estado "no anclado" contra
+    // estado "alterado") es responsabilidad de la capa de servicio off-chain,
+    // que consulta primero la existencia y recién después interpreta el
+    // resultado. Convertir esa distinción en una garantía on-chain requeriría
+    // cambiar el contrato y redesplegarlo, algo explícitamente fuera de
+    // alcance (ver riesgo conocido y aceptado en la spec).
+    const pacienteInexistente = "PAC_INEXISTENTE";
+    const fechaInexistente = "2026-11-14";
+
+    expect(
+      await registro.verificarHash(pacienteInexistente, fechaInexistente, hashValido)
+    ).to.be.false;
+  });
 });
